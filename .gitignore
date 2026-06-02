@@ -1,0 +1,36 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# --- Secrets / config ---
+.env
+*.local
+
+# --- Vector store & data artifacts ---
+chroma_db/
+backend/data/feedback.jsonl
+backend/data/drive_cache/
+backend/data/mock_docs/*
+!backend/data/mock_docs/.gitkeep
+
+# --- Service account secrets ---
+backend/secrets/
+
+# --- Node / frontend ---
+node_modules/
+frontend/dist/
+.vite/
+
+# --- Service account keys ---
+*-service-account*.json
+service_account*.json
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

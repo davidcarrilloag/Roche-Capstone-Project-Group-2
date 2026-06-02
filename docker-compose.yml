@@ -1,0 +1,39 @@
+# Local development stack: backend (FastAPI) + frontend (Vite dev server).
+# Usage:  docker compose up --build
+#
+# For the demo you can also run each service directly (see README).
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: sa-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - ./data:/data          # shared mock docs
+      - ./chroma_db:/app/chroma_db
+    environment:
+      - MOCK_DOCS_PATH=/data/mock_docs
+      - CHROMA_DB_PATH=/app/chroma_db
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sa-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+    depends_on:
+      - backend
