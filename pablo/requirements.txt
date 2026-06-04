@@ -1,0 +1,30 @@
+# RAG Pipeline — Python dependencies
+# Run: pip install -r requirements.txt
+
+# LangChain core + integrations
+langchain==0.2.16
+langchain-google-genai==1.0.10
+langchain-community==0.2.16
+langchain-chroma==0.1.4
+
+# Vector database (local, no infra needed)
+chromadb==0.5.5
+
+# LLM provider — Google AI Studio (free tier)
+google-generativeai==0.7.2
+
+# Language detection
+langdetect==1.0.9
+
+# API server
+fastapi==0.115.0
+uvicorn==0.30.6
+
+# Markdown parsing (for .md SOP files)
+markdown==3.7
+
+# Environment variable loading
+python-dotenv==1.0.1
+
+# Typing
+pydantic==2.9.2

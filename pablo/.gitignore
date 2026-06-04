@@ -1,0 +1,16 @@
+# Environment — never commit API keys
+.env
+
+# Vector database — generated locally, not committed
+chroma_db/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
