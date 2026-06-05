@@ -15,10 +15,10 @@ services:
       - .env
     volumes:
       - ./backend:/app
-      - ./data:/data          # shared mock docs
+      - ./data:/data          # SOP knowledge base (data/sops)
       - ./chroma_db:/app/chroma_db
     environment:
-      - MOCK_DOCS_PATH=/data/mock_docs
+      - SOPS_PATH=/data/sops
       - CHROMA_DB_PATH=/app/chroma_db
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 

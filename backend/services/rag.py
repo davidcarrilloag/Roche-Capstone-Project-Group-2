@@ -1,21 +1,15 @@
 """
-RAG client — delegates document Q&A to Pablo's RAG service.
+RAG query pipeline (in-process) — Gemini + ChromaDB.
 
-The canonical RAG pipeline lives in `pablo/` (Gemini + ChromaDB) and is exposed
-as an HTTP service:  POST {RAG_SERVICE_URL}/api/rag/query  (default :8001).
+For a scientist's question: accept/detect the language, retrieve the top-k SOP
+chunks from ChromaDB, build a grounded language-aware prompt, and ask Gemini for
+an answer with a source citation (title, version, date).
 
-This module keeps the same `RAGService.query(question, language) -> dict`
-interface the rest of the backend already uses, so the chat route doesn't care
-that retrieval now happens in a separate service. To run the full stack:
+Exposes the backend's standard `RAGService.query(question, language) -> dict`
+interface, so the chat route is provider-agnostic. Degrades gracefully when no
+Google API key is configured.
 
-    # terminal 1 — Pablo's RAG service
-    cd pablo && uvicorn src.api:app --port 8001
-    # terminal 2 — this backend
-    cd backend && uvicorn main:app --port 8000
-
-Pablo's request : {query, user_language, user_role}
-Pablo's response: {answer, source{title,doc_id,version,date},
-                   language_detected, confidence (float), low_confidence (bool)}
+RAG pipeline originally authored by Pablo; integrated into the backend.
 """
 
 from __future__ import annotations
@@ -23,81 +17,163 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-import httpx
-
 from config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
-SERVICE_UNAVAILABLE = (
-    "The knowledge service is not available right now. Please try again in a "
-    "moment or contact your local IT support."
+TOP_K = 5
+
+SUPPORTED_LANGUAGES = {
+    "en": "English",
+    "de": "German",
+    "fr": "French",
+    "it": "Italian",
+}
+
+NOT_CONFIGURED = (
+    "Document Q&A is not available yet: the knowledge service is missing its "
+    "Google API key. Please contact your local IT support."
 )
+
+EMPTY_INDEX = (
+    "I don't have any documents in my knowledge base yet. Please ensure the SOPs "
+    "have been ingested."
+)
+
+# Low-confidence warning prepended to weak answers, per language.
+LOW_CONF_WARNING = {
+    "en": "Note: I'm not very confident in this answer — please verify with the source document.",
+    "de": "Hinweis: Ich bin nicht sehr sicher bei dieser Antwort — bitte prüfen Sie das Quelldokument.",
+    "fr": "Note: Je ne suis pas très confiant dans cette réponse — veuillez vérifier le document source.",
+    "it": "Nota: Non sono molto sicuro di questa risposta — si prega di verificare il documento sorgente.",
+}
+
+
+def _empty_result(answer: str) -> dict:
+    return {
+        "answer": answer,
+        "source_doc": "",
+        "source_page": "",
+        "source_version": "",
+        "source_last_updated": "",
+        "confidence": "low",
+    }
 
 
 class RAGService:
-    """Thin HTTP client for Pablo's RAG pipeline."""
+    """In-process retrieval-augmented QA over the SOP knowledge base."""
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         self.settings = settings or get_settings()
-        self.base_url = self.settings.rag_service_url.rstrip("/")
+        self._store = None
+        self._llm = None
+
+    # ------------------------------------------------------------------
+    def _get_store(self):
+        if self._store is None:
+            from services.ingest import get_vectorstore
+
+            self._store = get_vectorstore(self.settings)
+        return self._store
+
+    def _get_llm(self):
+        if self._llm is None:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+
+            self._llm = ChatGoogleGenerativeAI(
+                model=self.settings.gemini_model,
+                temperature=0,
+                google_api_key=self.settings.google_api_key,
+            )
+        return self._llm
 
     @staticmethod
-    def _confidence_label(confidence: float, low_confidence: bool) -> str:
-        """Map Pablo's numeric confidence + flag to our high/medium/low label."""
+    def _confidence_label(score: float, low_confidence: bool) -> str:
         if low_confidence:
             return "low"
-        if confidence >= 0.8:
+        if score >= 0.8:
             return "high"
-        if confidence >= 0.6:
+        if score >= 0.6:
             return "medium"
         return "low"
 
+    # ------------------------------------------------------------------
     def query(self, question: str, language: str = "en") -> dict:
-        """
-        Ask Pablo's RAG service and adapt the response to the backend's shape.
+        """Answer a question from the SOP corpus with a version-aware citation."""
+        if not self.settings.has_google:
+            return _empty_result(NOT_CONFIGURED)
 
-        Returns: {answer, source_doc, source_page, source_version,
-                  source_last_updated, confidence}.
-        """
-        url = f"{self.base_url}/api/rag/query"
-        payload = {"query": question, "user_language": language}
+        lang = language if language in SUPPORTED_LANGUAGES else "en"
+
         try:
-            resp = httpx.post(url, json=payload, timeout=30.0)
-            resp.raise_for_status()
-            data = resp.json()
-        except Exception as exc:  # service down, timeout, or pipeline error
-            logger.warning("RAG service call failed (%s): %s", url, exc)
-            return {
-                "answer": SERVICE_UNAVAILABLE,
-                "source_doc": "",
-                "source_page": "",
-                "source_version": "",
-                "source_last_updated": "",
-                "confidence": "low",
-            }
+            store = self._get_store()
+            results = store.similarity_search_with_relevance_scores(question, k=TOP_K)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("Retrieval failed: %s", exc)
+            return _empty_result(EMPTY_INDEX)
 
-        source = data.get("source", {}) or {}
+        if not results:
+            return _empty_result(EMPTY_INDEX)
+
+        docs, scores = zip(*results)
+        confidence = float(scores[0])
+        low_confidence = confidence < self.settings.confidence_threshold
+
+        top = docs[0].metadata
+        source = {
+            "title": top.get("title", "Unknown"),
+            "doc_id": top.get("doc_id", "N/A"),
+            "version": top.get("version", "N/A"),
+            "date": top.get("date", "N/A"),
+        }
+        context = "\n\n---\n\n".join(d.page_content for d in docs)
+
+        answer = self._generate(question, context, lang, source)
+        if low_confidence:
+            answer = LOW_CONF_WARNING.get(lang, LOW_CONF_WARNING["en"]) + "\n\n" + answer
+
         return {
-            "answer": data.get("answer", ""),
-            # Pablo's citation: title + doc_id + version + date.
-            "source_doc": source.get("title", ""),
-            "source_page": source.get("doc_id", ""),
-            "source_version": source.get("version", ""),
-            "source_last_updated": source.get("date", ""),
-            "confidence": self._confidence_label(
-                float(data.get("confidence", 0.0)),
-                bool(data.get("low_confidence", False)),
-            ),
+            "answer": answer,
+            "source_doc": source["title"],
+            "source_page": source["doc_id"],
+            "source_version": source["version"],
+            "source_last_updated": source["date"],
+            "confidence": self._confidence_label(confidence, low_confidence),
         }
 
-    def health(self) -> bool:
-        """True if Pablo's RAG service is reachable."""
+    def _generate(self, question: str, context: str, language: str, source: dict) -> str:
+        from langchain_core.output_parsers import StrOutputParser
+        from langchain_core.prompts import ChatPromptTemplate
+
+        language_name = SUPPORTED_LANGUAGES.get(language, "English")
+        system_message = (
+            f"You are a helpful assistant for Roche laboratory scientists.\n"
+            f"Always respond in {language_name}.\n"
+            "Use ONLY the information provided in the context below to answer the "
+            "question. Do not make up information. If the context does not contain "
+            "enough information to answer, say clearly: \"I don't have that "
+            "information in my documents. Please contact the relevant support team.\"\n\n"
+            "After your answer, always add a source line in this exact format:\n"
+            "[Source: {doc_title} | {doc_version} | {doc_date}]\n\n"
+            "Context:\n{context}"
+        )
+        prompt = ChatPromptTemplate.from_messages(
+            [("system", system_message), ("human", "{question}")]
+        )
+        chain = prompt | self._get_llm() | StrOutputParser()
         try:
-            r = httpx.get(f"{self.base_url}/health", timeout=5.0)
-            return r.status_code == 200
-        except Exception:
-            return False
+            return chain.invoke(
+                {
+                    "context": context,
+                    "question": question,
+                    "doc_title": source["title"],
+                    "doc_version": source["version"],
+                    "doc_date": source["date"],
+                }
+            ).strip()
+        except Exception as exc:  # pragma: no cover - network/defensive
+            logger.exception("Generation failed: %s", exc)
+            return NOT_CONFIGURED
 
 
 _rag_singleton: Optional[RAGService] = None

@@ -17,6 +17,8 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi import Query
+
 from config import get_settings
 from models.schemas import HealthResponse
 from routes import chat, feedback, incidents
@@ -55,9 +57,38 @@ async def health() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
+@app.post("/admin/reindex")
+async def reindex(sync_drive: bool = Query(default=False)) -> dict:
+    """
+    Rebuild the RAG index from the SOP knowledge base.
+
+    With ?sync_drive=true, first pull the latest SOPs from Google Drive
+    (the Drive bridge) and then re-ingest.
+    """
+    from services.ingest import ingest
+
+    chunks = ingest(sync_drive=sync_drive)
+    return {"status": "ok", "chunks_indexed": chunks, "drive_synced": sync_drive}
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     settings = get_settings()
     logger.info("Starting Scientist Assistant backend")
-    logger.info("MOCK_MODE=%s | Groq configured=%s", settings.mock_mode, settings.has_groq)
-    logger.info("Docs path: %s", settings.mock_docs_path)
+    logger.info(
+        "MOCK_MODE=%s | Groq=%s | Gemini/RAG=%s",
+        settings.mock_mode, settings.has_groq, settings.has_google,
+    )
+    logger.info("SOPs path: %s", settings.sops_path)
+
+    # Best-effort: if the RAG is configured but its index is empty, build it once.
+    if settings.has_google:
+        try:
+            from services.ingest import get_vectorstore, ingest
+
+            store = get_vectorstore(settings)
+            if not store.get().get("ids"):
+                logger.info("Vector index empty — running initial ingestion...")
+                ingest(settings)
+        except Exception as exc:  # never block startup on ingestion
+            logger.warning("Startup ingestion skipped: %s", exc)

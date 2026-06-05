@@ -27,29 +27,21 @@ class Settings:
         # Model is overridable so we can swap when Groq rotates model names.
         self.groq_model: str = os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile")
 
-        # --- RAG service (Pablo's pipeline) ---
-        # Document Q&A is delegated to Pablo's RAG service over HTTP.
-        self.rag_service_url: str = os.getenv(
-            "RAG_SERVICE_URL", "http://localhost:8001"
-        )
-
-        # --- Embeddings / Vector store ---
+        # --- RAG (Gemini via Google AI Studio) ---
+        # Document Q&A runs in-process: Gemini embeddings + ChromaDB + Gemini LLM.
+        self.google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
+        self.gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
         self.embedding_model: str = os.getenv(
-            "EMBEDDING_MODEL", "all-MiniLM-L6-v2"
+            "EMBEDDING_MODEL", "models/embedding-001"
         )
         self.chroma_db_path: str = os.getenv(
             "CHROMA_DB_PATH", str(REPO_ROOT / "chroma_db")
         )
 
         # --- Documents ---
-        # Shared mock docs live at <repo root>/data/mock_docs by default.
-        self.mock_docs_path: str = os.getenv(
-            "MOCK_DOCS_PATH", str(REPO_ROOT / "data" / "mock_docs")
-        )
-        # Metadata manifest: maps each source filename to version/date/tags so
-        # the RAG pipeline can produce version-aware citations.
-        self.manifest_path: str = os.getenv(
-            "MANIFEST_PATH", str(REPO_ROOT / "data" / "manifest.yaml")
+        # The SOP knowledge base the RAG pipeline ingests.
+        self.sops_path: str = os.getenv(
+            "SOPS_PATH", str(REPO_ROOT / "data" / "sops")
         )
 
         # --- Google Drive ---
@@ -69,15 +61,20 @@ class Settings:
         # When true, external integrations (ServiceNow) return mock data.
         self.mock_mode: bool = os.getenv("MOCK_MODE", "true").lower() == "true"
 
-        # Retrieval score threshold below which we say "not found".
-        self.retrieval_threshold: float = float(
-            os.getenv("RETRIEVAL_THRESHOLD", "0.35")
+        # Retrieval relevance score below which an answer is flagged low-confidence.
+        self.confidence_threshold: float = float(
+            os.getenv("CONFIDENCE_THRESHOLD", "0.6")
         )
 
     @property
     def has_groq(self) -> bool:
         """True when a Groq key is configured; services degrade gracefully if not."""
         return bool(self.groq_api_key)
+
+    @property
+    def has_google(self) -> bool:
+        """True when a Gemini/Google AI Studio key is configured for the RAG."""
+        return bool(self.google_api_key)
 
 
 @lru_cache

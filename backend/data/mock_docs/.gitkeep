@@ -1,8 +1,0 @@
-# Local document cache.
-#
-# The canonical mock documents live in the SHARED folder at the repo root:
-#     ../../../data/mock_docs/
-#
-# The RAG pipeline reads from MOCK_DOCS_PATH (default: <repo root>/data/mock_docs).
-# When the real Google Drive integration is wired up, downloaded files will be
-# cached here. Keep this file so the empty folder is tracked in git.

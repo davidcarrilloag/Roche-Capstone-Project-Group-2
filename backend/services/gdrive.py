@@ -1,29 +1,26 @@
 """
-Google Drive document fetcher.
+Google Drive document sync.
 
 Owner: Google Drive integration.
 
-Behaviour
----------
-* MOCK mode (or no credentials / no folder id) -> lists the local files in
-  data/mock_docs so the RAG pipeline always has something to index.
-* Real mode (MOCK_MODE=false + GOOGLE_DRIVE_FOLDER_ID + service-account JSON)
-  -> authenticates with the service account, lists the files in the shared
-  Drive folder, downloads them into a local cache, and returns their paths.
+Bridges Google Drive to the RAG knowledge base: pulls the latest Markdown SOPs
+from a shared Drive folder into the local `data/sops/` directory, where the
+ingester (`services/ingest.py`) picks them up. This makes Drive the live source
+of truth for the documents the assistant answers from.
 
-Both paths return a list of local file paths, so RAGService doesn't care where
-the documents came from.
-
-Setup recap
------------
+Setup:
 1. Create a service account, download its JSON key, point
    GOOGLE_SERVICE_ACCOUNT_JSON at it.
-2. Share the Drive folder with the service account email (Viewer).
+2. Share the Drive folder with the service-account email (Viewer).
 3. Put the folder id (from the Drive URL) in GOOGLE_DRIVE_FOLDER_ID.
+
+When unconfigured, `sync_to_sops` is a no-op and the committed seed SOPs in
+`data/sops/` are used as-is.
 """
 
 from __future__ import annotations
 
+import io
 import logging
 import re
 from pathlib import Path
@@ -33,23 +30,12 @@ from config import REPO_ROOT, Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
-# Read-only access is all we need.
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-
-# Google Workspace (native Docs) export mappings -> (export_mime, extension).
-# Native Docs/Sheets/Slides can't be downloaded directly; they must be exported.
-GOOGLE_EXPORTS = {
-    "application/vnd.google-apps.document": ("text/plain", ".md"),
-    "application/vnd.google-apps.spreadsheet": ("text/csv", ".csv"),
-    "application/vnd.google-apps.presentation": ("text/plain", ".md"),
-}
-
-# Extensions the RAG pipeline knows how to index.
-INDEXABLE = {".md", ".pdf"}
+GOOGLE_DOC_MIME = "application/vnd.google-apps.document"
 
 
 class GoogleDriveService:
-    """Fetch source documents from Google Drive (mock-backed when unconfigured)."""
+    """Sync Markdown SOPs from Google Drive into the local knowledge base."""
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         self.settings = settings or get_settings()
@@ -59,19 +45,6 @@ class GoogleDriveService:
         s = self.settings
         return bool(s.gdrive_folder_id and self._service_account_path().exists())
 
-    def list_documents(self) -> List[str]:
-        """Return local file paths for all available source documents."""
-        if self.settings.mock_mode or not self._real_config_present:
-            return self._list_local()
-        try:
-            return self._fetch_from_drive()
-        except Exception as exc:  # pragma: no cover - network/defensive
-            logger.exception("Drive fetch failed, falling back to local docs: %s", exc)
-            return self._list_local()
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
     def _service_account_path(self) -> Path:
         """Resolve the SA JSON path (relative paths are relative to repo root)."""
         p = Path(self.settings.gdrive_service_account_json or "")
@@ -79,34 +52,10 @@ class GoogleDriveService:
             p = REPO_ROOT / p
         return p
 
-    def _cache_dir(self) -> Path:
-        d = REPO_ROOT / "backend" / "data" / "drive_cache"
-        d.mkdir(parents=True, exist_ok=True)
-        return d
-
     @staticmethod
     def _safe_name(name: str) -> str:
         return re.sub(r"[^\w.\- ]+", "_", name).strip()
 
-    # ------------------------------------------------------------------
-    # Mock / local
-    # ------------------------------------------------------------------
-    def _list_local(self) -> List[str]:
-        docs_dir = Path(self.settings.mock_docs_path)
-        if not docs_dir.exists():
-            logger.warning("Mock docs folder missing: %s", docs_dir)
-            return []
-        paths = [
-            str(p)
-            for p in sorted(docs_dir.iterdir())
-            if p.suffix.lower() in INDEXABLE
-        ]
-        logger.info("[Local docs] Found %d documents in %s", len(paths), docs_dir)
-        return paths
-
-    # ------------------------------------------------------------------
-    # Real Google Drive
-    # ------------------------------------------------------------------
     def _build_service(self):
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
@@ -114,67 +63,62 @@ class GoogleDriveService:
         creds = service_account.Credentials.from_service_account_file(
             str(self._service_account_path()), scopes=SCOPES
         )
-        # cache_discovery=False avoids a noisy warning on some setups.
         return build("drive", "v3", credentials=creds, cache_discovery=False)
 
-    def _fetch_from_drive(self) -> List[str]:
-        from googleapiclient.http import MediaIoBaseDownload
+    # ------------------------------------------------------------------
+    def sync_to_sops(self, sop_dir: str) -> int:
+        """
+        Pull the latest Markdown SOPs from the Drive folder into `sop_dir`.
 
-        service = self._build_service()
-        folder_id = self.settings.gdrive_folder_id
-        cache = self._cache_dir()
+        Downloads `.md` files as-is and native Google Docs exported as Markdown.
+        Returns the number of files synced; 0 (no-op) if Drive isn't configured
+        or is unreachable, leaving the committed seed SOPs untouched.
+        """
+        if not self._real_config_present:
+            logger.info("[GDrive] Not configured; using local SOPs only.")
+            return 0
 
-        # Clear stale files so deleted/renamed Drive docs don't linger in the cache.
-        for old in cache.iterdir():
-            if old.suffix.lower() in INDEXABLE:
-                old.unlink(missing_ok=True)
+        try:
+            from googleapiclient.http import MediaIoBaseDownload
 
-        # List every (non-trashed) file directly inside the folder.
-        query = f"'{folder_id}' in parents and trashed = false"
-        files: List[dict] = []
-        page_token = None
-        while True:
-            resp = (
-                service.files()
-                .list(
-                    q=query,
-                    spaces="drive",
-                    fields="nextPageToken, files(id, name, mimeType)",
-                    pageToken=page_token,
+            service = self._build_service()
+            folder_id = self.settings.gdrive_folder_id
+            dest = Path(sop_dir)
+            dest.mkdir(parents=True, exist_ok=True)
+
+            query = f"'{folder_id}' in parents and trashed = false"
+            files: List[dict] = []
+            page_token = None
+            while True:
+                resp = (
+                    service.files()
+                    .list(
+                        q=query,
+                        spaces="drive",
+                        fields="nextPageToken, files(id, name, mimeType)",
+                        pageToken=page_token,
+                    )
+                    .execute()
                 )
-                .execute()
-            )
-            files.extend(resp.get("files", []))
-            page_token = resp.get("nextPageToken")
-            if not page_token:
-                break
+                files.extend(resp.get("files", []))
+                page_token = resp.get("nextPageToken")
+                if not page_token:
+                    break
 
-        logger.info("[GDrive] Folder %s has %d files", folder_id, len(files))
-
-        saved_paths: List[str] = []
-        for f in files:
-            name = self._safe_name(f["name"])
-            mime = f["mimeType"]
-            file_id = f["id"]
-
-            if mime in GOOGLE_EXPORTS:
-                export_mime, ext = GOOGLE_EXPORTS[mime]
-                # Ensure the saved name has the right extension for the RAG loader.
-                target = cache / (Path(name).stem + ext)
-                request = service.files().export_media(
-                    fileId=file_id, mimeType=export_mime
-                )
-            else:
-                target = cache / name
-                request = service.files().get_media(fileId=file_id)
-
-            # Only bother downloading things the RAG pipeline can index.
-            if target.suffix.lower() not in INDEXABLE:
-                logger.info("[GDrive] Skipping non-indexable file: %s (%s)", name, mime)
-                continue
-
-            try:
-                import io
+            synced = 0
+            for f in files:
+                name = self._safe_name(f["name"])
+                mime = f["mimeType"]
+                if mime == GOOGLE_DOC_MIME:
+                    target = dest / (Path(name).stem + ".md")
+                    request = service.files().export_media(
+                        fileId=f["id"], mimeType="text/markdown"
+                    )
+                elif name.lower().endswith(".md"):
+                    target = dest / name
+                    request = service.files().get_media(fileId=f["id"])
+                else:
+                    continue  # the ingester only consumes Markdown SOPs
 
                 buffer = io.BytesIO()
                 downloader = MediaIoBaseDownload(buffer, request)
@@ -182,12 +126,14 @@ class GoogleDriveService:
                 while not done:
                     _, done = downloader.next_chunk()
                 target.write_bytes(buffer.getvalue())
-                saved_paths.append(str(target))
-                logger.info("[GDrive] Downloaded %s -> %s", name, target.name)
-            except Exception as exc:  # pragma: no cover - per-file resilience
-                logger.exception("[GDrive] Failed to download %s: %s", name, exc)
+                synced += 1
+                logger.info("[GDrive] Synced SOP %s", target.name)
 
-        return saved_paths
+            logger.info("[GDrive] Synced %d SOP file(s) into %s", synced, dest)
+            return synced
+        except Exception as exc:  # pragma: no cover - network/defensive
+            logger.exception("[GDrive] sync_to_sops failed: %s", exc)
+            return 0
 
 
 _gdrive_singleton: Optional[GoogleDriveService] = None

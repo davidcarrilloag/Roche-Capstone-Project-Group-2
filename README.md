@@ -35,25 +35,27 @@ An AI-powered assistant that gives Roche scientists **one place** to:
         │ Classifier │  │ (Groq)    │ │ (Groq +   │ │ Client     │
         │ (Groq)     │  │           │ │ langdetect)│ │ (mock/REST)│
         └─────┬──────┘  └───────────┘ └───────────┘ └────────────┘
-              │ question (HTTP)
+              │ question
               ▼
      ┌──────────────────────────────────────────────┐
-     │     Pablo's RAG service  (pablo/, port 8001)   │
-     │  Google embeddings → ChromaDB vector store     │
-     │  → Gemini 2.0 Flash grounded answer            │
-     │  POST /api/rag/query → answer + source + ver.  │
+     │           RAG  (in-process, services/rag.py)   │
+     │  Gemini embeddings → ChromaDB vector store     │
+     │  → Gemini 2.0 Flash grounded, multilingual ans │
+     │  → answer + source (title · version · date)    │
      └───────────────────┬────────────────────────────┘
-                         │ ingests Markdown SOPs
+                         │ ingests Markdown SOPs (services/ingest.py)
                          ▼
-              ┌────────────────────────┐
-              │  pablo/data/sops/      │  ← Selva's docs (SOP-001…008)
-              │  doc_id · version · date frontmatter   │
-              └────────────────────────┘
+              ┌────────────────────────┐         ┌──────────────┐
+              │  data/sops/  SOP-001…08 │ ◄──sync──│ Google Drive │
+              │  doc_id·version·date fm │  bridge  │  (live docs) │
+              └────────────────────────┘         └──────────────┘
 ```
 
-> **RAG engine:** Document Q&A is handled by **Pablo's standalone RAG service**
-> in [`pablo/`](pablo/). The backend's `services/rag.py` is a thin HTTP client
-> that calls it at `RAG_SERVICE_URL` (default `http://localhost:8001`).
+> **RAG engine:** Document Q&A runs **in-process** in the backend
+> (`services/rag.py` query + `services/ingest.py` ingestion), using Gemini +
+> ChromaDB. The SOP knowledge base lives in `data/sops/`, and
+> `services/gdrive.py` syncs it from Google Drive. Needs a free
+> `GOOGLE_API_KEY` (Gemini).
 
 ---
 
@@ -111,31 +113,28 @@ uvicorn main:app --reload --port 8000
 Open <http://localhost:8000/docs> for the interactive Swagger UI, or hit
 <http://localhost:8000/health>.
 
-> **No Groq key yet?** The backend still boots and the endpoints respond:
-> sentiment/translation/intent fall back to lightweight heuristics. Document
-> Q&A is delegated to Pablo's RAG service (next step) — if it isn't running,
-> `/chat` returns a clear "knowledge service unavailable" message instead of
-> crashing.
+> **No keys yet?** The backend still boots. Sentiment/translation/intent fall
+> back to heuristics (no Groq key needed). Document Q&A needs a `GOOGLE_API_KEY`
+> (Gemini) — without it, `/chat` returns a clear "not configured" message
+> instead of crashing.
 
-### 2. RAG service (Pablo's pipeline — required for document Q&A)
+### 2. Ingest the SOP knowledge base (document Q&A)
+
+Document Q&A runs **in-process** in the backend. You just need a free Gemini key
+and to build the vector index from `data/sops/`:
 
 ```bash
-cd scientist-assistant/pablo
+# add a free Gemini key (https://aistudio.google.com/apikey) to ../.env:
+#   GOOGLE_API_KEY=your_key_here
 
-python -m venv .venv
-.venv\Scripts\Activate.ps1            # Windows PowerShell
-
-pip install -r requirements.txt        # Gemini + ChromaDB stack
-
-# add a free Google AI Studio key (https://aistudio.google.com/apikey)
-echo GOOGLE_API_KEY=your_key_here > .env
-
-python src/ingest.py                   # ingest the SOPs in pablo/data/sops/
-uvicorn src.api:app --reload --port 8001
+cd scientist-assistant/backend
+python -m services.ingest            # ingest data/sops/ into ChromaDB
+# or, to pull the latest docs from Google Drive first:
+python -m services.ingest --sync
 ```
 
-The backend reaches this service at `RAG_SERVICE_URL` (default
-`http://localhost:8001`). Health check: <http://localhost:8001/health>.
+The backend also auto-ingests on startup if the index is empty. To rebuild at
+runtime: `POST /admin/reindex` (add `?sync_drive=true` to pull from Drive).
 
 ### 3. Frontend
 
@@ -176,10 +175,13 @@ docker compose up --build
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GROQ_API_KEY` | for LLM | Free key from console.groq.com. Enables translation, sentiment & intent classification (NOT the RAG — that's Pablo's Gemini service). |
-| `GROQ_MODEL` | no | LLM model name. Default `llama-3.1-70b-versatile`. |
-| `RAG_SERVICE_URL` | no | URL of Pablo's RAG service. Default `http://localhost:8001`. |
-| `GOOGLE_DRIVE_FOLDER_ID` | for Drive | Folder ID from the Drive URL (Google Drive integration). |
+| `GOOGLE_API_KEY` | for RAG | Free Gemini key (aistudio.google.com/apikey). Powers document Q&A (embeddings + answers). |
+| `GEMINI_MODEL` | no | Gemini chat model. Default `gemini-2.0-flash`. |
+| `EMBEDDING_MODEL` | no | Gemini embedding model. Default `models/embedding-001`. |
+| `SOPS_PATH` | no | SOP knowledge base folder. Default `<repo>/data/sops`. |
+| `GROQ_API_KEY` | no | Free key from console.groq.com for sentiment/translation/intent (heuristic fallback without it). |
+| `GROQ_MODEL` | no | Groq model name. Default `llama-3.1-70b-versatile`. |
+| `GOOGLE_DRIVE_FOLDER_ID` | for Drive | Folder ID from the Drive URL — syncs SOPs into `data/sops`. |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | for Drive | Path to the service-account JSON file. |
 | `SERVICENOW_INSTANCE_URL` | for live tickets | e.g. `https://devXXXXX.service-now.com`. |
 | `SERVICENOW_USERNAME` | for live tickets | ServiceNow user. |
