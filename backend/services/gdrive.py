@@ -124,6 +124,11 @@ class GoogleDriveService:
         folder_id = self.settings.gdrive_folder_id
         cache = self._cache_dir()
 
+        # Clear stale files so deleted/renamed Drive docs don't linger in the cache.
+        for old in cache.iterdir():
+            if old.suffix.lower() in INDEXABLE:
+                old.unlink(missing_ok=True)
+
         # List every (non-trashed) file directly inside the folder.
         query = f"'{folder_id}' in parents and trashed = false"
         files: List[dict] = []

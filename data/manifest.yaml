@@ -1,0 +1,77 @@
+# Document metadata manifest
+# -----------------------------------------------------------------------------
+# The source documents (PDFs) live in Google Drive and carry no machine-readable
+# version/date. This manifest attaches that metadata at ingest time so the RAG
+# pipeline can produce version-aware citations (Selva's requirement: surface the
+# document name + last-updated date, and flag if a newer version exists).
+#
+# Matching is by filename, normalized (lowercase, alphanumeric only), so minor
+# punctuation/spacing differences between Drive and the local cache don't matter.
+#
+# When Selva sends a new or updated document, add/update its entry here — no code
+# change needed.
+
+documents:
+  - file: "Building in Basel_ Comprehensive Guide to Campus Access, Dining, and Facilities.pdf"
+    title: "Building in Basel — Campus Access, Dining, and Facilities"
+    version: "1.0"
+    last_updated: "2026-04-22"
+    language: en
+    topic_tags: [facilities, access, badge, building, dining, campus, security]
+    roche_use_cases: [1, 10]
+
+  - file: "Collaborative Lab Sharing and Digital Workflows.pdf"
+    title: "Collaborative Lab Sharing and Digital Workflows"
+    version: "1.0"
+    last_updated: "2026-04-30"
+    language: en
+    topic_tags: [lab-sharing, SLS, booking, etiquette, workflows, equipment]
+    roche_use_cases: [1, 8]
+
+  - file: "HP_Engage One ProDisinfecting Products (2).pdf"
+    title: "Approved Disinfecting Wipes for Select HP Platforms"
+    version: "4AA7-9819ENW"
+    last_updated: "2022-12-01"
+    language: en
+    topic_tags: [equipment-cleaning, disinfection, HP, devices, touchscreen, wipes, compliance]
+    roche_use_cases: [5]
+
+  - file: "Instrument Calibration Drift_ Laboratory Detection, Assessment, and Management Procedure.pdf"
+    title: "Instrument Calibration Drift — Detection, Assessment, and Management Procedure"
+    version: "1.0"
+    last_updated: "2026-05-05"
+    language: en
+    topic_tags: [instruments, calibration, drift, maintenance, QC, quality, troubleshooting]
+    roche_use_cases: [8]
+
+  - file: "Laboratory Waste Management Guide.pdf"
+    title: "Laboratory Waste Management Guide"
+    version: "1.0"
+    last_updated: "2026-05-20"
+    language: en
+    topic_tags: [waste, disposal, biohazard, chemical, sharps, solvents, EHS, containment]
+    roche_use_cases: [4]
+
+  - file: "Material Return Procedures via Automated Conveyor Network.pdf"
+    title: "Material Return Procedures via Automated Conveyor Network"
+    version: "1.0"
+    last_updated: "2026-05-10"
+    language: en
+    topic_tags: [returns, logistics, conveyor, crates, packaging]
+    roche_use_cases: [3]
+
+  - file: "New Employee Onboarding & Digital Access Guide.pdf"
+    title: "New Employee Onboarding & Digital Access Guide"
+    version: "1.0"
+    last_updated: "2026-05-15"
+    language: en
+    topic_tags: [onboarding, access, IT, training, permissions, applications]
+    roche_use_cases: [1, 10]
+
+  - file: "Ordering Chemicals, Life Science Products, and Consumables.pdf"
+    title: "Ordering Chemicals, Life Science Products, and Consumables"
+    version: "1.0"
+    last_updated: "2026-05-18"
+    language: en
+    topic_tags: [ordering, procurement, chemicals, consumables, conveyor, logistics]
+    roche_use_cases: [2, 7]

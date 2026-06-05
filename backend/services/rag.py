@@ -18,6 +18,7 @@ Design notes for the team
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -48,6 +49,7 @@ class RAGService:
         self._vectorstore = None  # lazily built Chroma instance
         self._embeddings = None
         self._llm = None
+        self._manifest = None  # lazily loaded metadata manifest
 
     # ------------------------------------------------------------------
     # Lazy builders
@@ -75,6 +77,39 @@ class RAGService:
             )
         return self._llm
 
+    @staticmethod
+    def _normalize(name: str) -> str:
+        """Normalize a filename stem to alphanumeric-lowercase for matching."""
+        return re.sub(r"[^a-z0-9]+", "", name.lower())
+
+    def _load_manifest(self) -> dict:
+        """Load the document metadata manifest, keyed by normalized filename.
+
+        Returns {} if the manifest is missing or unreadable, so ingestion still
+        works without it (just without version-aware citations).
+        """
+        if self._manifest is not None:
+            return self._manifest
+
+        self._manifest = {}
+        manifest_path = Path(self.settings.manifest_path)
+        if not manifest_path.exists():
+            logger.info("No manifest at %s; skipping metadata enrichment", manifest_path)
+            return self._manifest
+        try:
+            import yaml
+
+            data = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+            for entry in data.get("documents", []):
+                fname = entry.get("file", "")
+                key = self._normalize(Path(fname).stem)
+                if key:
+                    self._manifest[key] = entry
+            logger.info("Loaded manifest with %d document entries", len(self._manifest))
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("Failed to read manifest: %s", exc)
+        return self._manifest
+
     def _load_documents(self):
         """Load and split all .md and .pdf source documents.
 
@@ -95,6 +130,8 @@ class RAGService:
             logger.warning("No source documents found to index.")
             return []
 
+        manifest = self._load_manifest()
+
         raw_docs = []
         for path in paths:
             try:
@@ -104,9 +141,14 @@ class RAGService:
                     loaded = PyPDFLoader(str(path)).load()
                 else:
                     continue
-                # Tag each doc with its filename for citations.
+                # Attach metadata: filename for retrieval + manifest entry
+                # (title, version, last_updated, tags) for version-aware citations.
+                meta = manifest.get(self._normalize(path.stem), {})
                 for d in loaded:
-                    d.metadata["source_doc"] = path.name
+                    d.metadata["source_file"] = path.name
+                    d.metadata["source_doc"] = meta.get("title", path.name)
+                    d.metadata["version"] = str(meta.get("version", ""))
+                    d.metadata["last_updated"] = str(meta.get("last_updated", ""))
                 raw_docs.extend(loaded)
             except Exception as exc:  # pragma: no cover - defensive
                 logger.exception("Failed to load %s: %s", path, exc)
@@ -208,6 +250,8 @@ class RAGService:
             "answer": answer,
             "source_doc": source_doc,
             "source_page": str(page),
+            "source_version": best_doc.metadata.get("version", ""),
+            "source_last_updated": best_doc.metadata.get("last_updated", ""),
             "confidence": self._confidence_from_score(best_score),
         }
 

@@ -77,6 +77,8 @@ async def chat(
         answer=result["answer"],
         source_doc=result.get("source_doc", ""),
         source_page=result.get("source_page", ""),
+        source_version=result.get("source_version", ""),
+        source_last_updated=result.get("source_last_updated", ""),
         detected_language=language,
         is_feedback=False,
         sentiment=None,

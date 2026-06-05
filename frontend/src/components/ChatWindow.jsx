@@ -53,6 +53,8 @@ export default function ChatWindow() {
           text: res.answer,
           source_doc: res.source_doc,
           source_page: res.source_page,
+          source_version: res.source_version,
+          source_last_updated: res.source_last_updated,
           confidence: res.confidence,
           is_feedback: res.is_feedback,
           sentiment: res.sentiment,

@@ -22,6 +22,12 @@ export default function MessageBubble({ message }) {
             {message.source_page !== "" && message.source_page != null
               ? ` (ref ${message.source_page})`
               : ""}
+            {message.source_last_updated
+              ? ` · updated ${message.source_last_updated}`
+              : ""}
+            {message.source_version
+              ? ` · v${message.source_version}`
+              : ""}
             {message.confidence && (
               <span
                 className={`ml-2 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide ${

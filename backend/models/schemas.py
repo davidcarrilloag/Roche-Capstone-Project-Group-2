@@ -44,6 +44,14 @@ class ChatResponse(BaseModel):
         default="",
         description="Chunk or page reference inside the source document.",
     )
+    source_version: str = Field(
+        default="",
+        description="Version of the source document (from the metadata manifest).",
+    )
+    source_last_updated: str = Field(
+        default="",
+        description="Last-updated date of the source document (version awareness).",
+    )
     detected_language: str = Field(
         default="en",
         description="Language the backend detected for the incoming message.",

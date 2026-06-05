@@ -40,6 +40,11 @@ class Settings:
         self.mock_docs_path: str = os.getenv(
             "MOCK_DOCS_PATH", str(REPO_ROOT / "data" / "mock_docs")
         )
+        # Metadata manifest: maps each source filename to version/date/tags so
+        # the RAG pipeline can produce version-aware citations.
+        self.manifest_path: str = os.getenv(
+            "MANIFEST_PATH", str(REPO_ROOT / "data" / "manifest.yaml")
+        )
 
         # --- Google Drive ---
         self.gdrive_folder_id: str = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")
