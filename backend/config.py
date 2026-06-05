@@ -22,10 +22,16 @@ class Settings:
     """Typed accessor over environment variables with sensible defaults."""
 
     def __init__(self) -> None:
-        # --- LLM (Groq) ---
+        # --- LLM (Groq) — used by sentiment / translator / intent classifier ---
         self.groq_api_key: str = os.getenv("GROQ_API_KEY", "")
         # Model is overridable so we can swap when Groq rotates model names.
         self.groq_model: str = os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile")
+
+        # --- RAG service (Pablo's pipeline) ---
+        # Document Q&A is delegated to Pablo's RAG service over HTTP.
+        self.rag_service_url: str = os.getenv(
+            "RAG_SERVICE_URL", "http://localhost:8001"
+        )
 
         # --- Embeddings / Vector store ---
         self.embedding_model: str = os.getenv(

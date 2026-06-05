@@ -1,6 +1,9 @@
-# Roche Scientist Assistant — backend dependencies
-# Pinned for reproducible installs across all 6 developers.
+# Roche Scientist Assistant — BACKEND dependencies (orchestration layer)
 # Install (from the repo root):  pip install -r requirements.txt
+#
+# NOTE: Document Q&A (RAG) is handled by Pablo's separate service in `pablo/`.
+# Its heavy ML stack (Gemini, ChromaDB, embeddings) lives in pablo/requirements.txt
+# and is NOT needed to run this backend.
 
 # --- Web framework ---
 fastapi==0.115.6
@@ -8,26 +11,19 @@ uvicorn[standard]==0.34.0
 pydantic==2.10.4
 python-multipart==0.0.20
 
-# --- LLM / RAG stack ---
-langchain==0.3.14
+# --- LLM (Groq) — sentiment, translation, intent classification ---
 langchain-groq==0.2.3
-langchain-community==0.3.14
-langchain-huggingface==0.1.2
-chromadb==0.5.23
-sentence-transformers==3.3.1
-
-# --- PDF loading (for .pdf docs in mock_docs) ---
-pypdf==5.1.0
+langchain-core==0.3.29
 
 # --- Language detection ---
 langdetect==1.0.9
 
-# --- Google Drive integration ---
+# --- HTTP client (calls Pablo's RAG service + ServiceNow) ---
+httpx==0.28.1
+
+# --- Google Drive (optional — document sync, Marcos) ---
 google-api-python-client==2.156.0
 google-auth==2.37.0
-
-# --- HTTP client (ServiceNow + general) ---
-httpx==0.28.1
 
 # --- Config ---
 python-dotenv==1.0.1
