@@ -154,9 +154,41 @@ def ingest(settings: Optional[Settings] = None, sync_drive: bool = False) -> int
                 store.delete(ids=existing["ids"])
             seen.add(doc_id)
 
-    store.add_documents(chunks)
+    _add_in_batches(store, chunks)
     logger.info("Ingestion complete: %d chunks from %d documents", len(chunks), len(documents))
     return len(chunks)
+
+
+def _add_in_batches(store, chunks, batch_size: int = 5, pause: float = 2.0) -> None:
+    """
+    Add chunks to the store in small batches with backoff.
+
+    The free Gemini embedding tier rate-limits large batches (HTTP 429), so we
+    embed a few chunks at a time and back off when throttled.
+    """
+    import time
+
+    for start in range(0, len(chunks), batch_size):
+        batch = chunks[start : start + batch_size]
+        for attempt in range(6):
+            try:
+                store.add_documents(batch)
+                break
+            except Exception as exc:
+                msg = str(exc).lower()
+                if "429" in msg or "exhausted" in msg or "quota" in msg:
+                    wait = 10 * (attempt + 1)
+                    logger.warning(
+                        "Rate limited on batch %d — waiting %ss (attempt %d/6)",
+                        start // batch_size + 1, wait, attempt + 1,
+                    )
+                    time.sleep(wait)
+                else:
+                    raise
+        else:
+            raise RuntimeError("Embedding kept hitting the rate limit; try again later.")
+        logger.info("Embedded %d/%d chunks", min(start + batch_size, len(chunks)), len(chunks))
+        time.sleep(pause)
 
 
 if __name__ == "__main__":

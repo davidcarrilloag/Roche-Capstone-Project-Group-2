@@ -30,9 +30,9 @@ class Settings:
         # --- RAG (Gemini via Google AI Studio) ---
         # Document Q&A runs in-process: Gemini embeddings + ChromaDB + Gemini LLM.
         self.google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
-        self.gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        self.gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
         self.embedding_model: str = os.getenv(
-            "EMBEDDING_MODEL", "models/embedding-001"
+            "EMBEDDING_MODEL", "models/gemini-embedding-001"
         )
         self.chroma_db_path: str = os.getenv(
             "CHROMA_DB_PATH", str(REPO_ROOT / "chroma_db")
@@ -40,8 +40,9 @@ class Settings:
 
         # --- Documents ---
         # The SOP knowledge base the RAG pipeline ingests.
-        self.sops_path: str = os.getenv(
-            "SOPS_PATH", str(REPO_ROOT / "data" / "sops")
+        # `or` (not getenv default) so a blank SOPS_PATH= line falls back too.
+        self.sops_path: str = os.getenv("SOPS_PATH") or str(
+            REPO_ROOT / "data" / "sops"
         )
 
         # --- Google Drive ---
@@ -63,7 +64,7 @@ class Settings:
 
         # Retrieval relevance score below which an answer is flagged low-confidence.
         self.confidence_threshold: float = float(
-            os.getenv("CONFIDENCE_THRESHOLD", "0.6")
+            os.getenv("CONFIDENCE_THRESHOLD", "0.45")
         )
 
     @property

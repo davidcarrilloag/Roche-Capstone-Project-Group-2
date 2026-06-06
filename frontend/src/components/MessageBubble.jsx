@@ -26,7 +26,7 @@ export default function MessageBubble({ message }) {
               ? ` · updated ${message.source_last_updated}`
               : ""}
             {message.source_version
-              ? ` · v${message.source_version}`
+              ? ` · ${message.source_version}`
               : ""}
             {message.confidence && (
               <span
