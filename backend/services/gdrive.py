@@ -105,20 +105,35 @@ class GoogleDriveService:
                 if not page_token:
                     break
 
+            # Keep only the Markdown SOPs / Google Docs the ingester can use.
+            usable = [
+                f for f in files
+                if f["mimeType"] == GOOGLE_DOC_MIME
+                or f["name"].lower().endswith(".md")
+            ]
+            if not usable:
+                logger.warning(
+                    "[GDrive] No Markdown SOPs in the Drive folder — keeping the "
+                    "local seed SOPs untouched."
+                )
+                return 0
+
+            # Drive is the source of truth: mirror it. Clear stale local SOPs
+            # first so docs deleted from Drive also disappear locally.
+            for old in dest.glob("*.md"):
+                old.unlink(missing_ok=True)
+
             synced = 0
-            for f in files:
+            for f in usable:
                 name = self._safe_name(f["name"])
-                mime = f["mimeType"]
-                if mime == GOOGLE_DOC_MIME:
+                if f["mimeType"] == GOOGLE_DOC_MIME:
                     target = dest / (Path(name).stem + ".md")
                     request = service.files().export_media(
                         fileId=f["id"], mimeType="text/markdown"
                     )
-                elif name.lower().endswith(".md"):
+                else:
                     target = dest / name
                     request = service.files().get_media(fileId=f["id"])
-                else:
-                    continue  # the ingester only consumes Markdown SOPs
 
                 buffer = io.BytesIO()
                 downloader = MediaIoBaseDownload(buffer, request)
@@ -129,7 +144,7 @@ class GoogleDriveService:
                 synced += 1
                 logger.info("[GDrive] Synced SOP %s", target.name)
 
-            logger.info("[GDrive] Synced %d SOP file(s) into %s", synced, dest)
+            logger.info("[GDrive] Mirrored %d SOP file(s) into %s", synced, dest)
             return synced
         except Exception as exc:  # pragma: no cover - network/defensive
             logger.exception("[GDrive] sync_to_sops failed: %s", exc)
