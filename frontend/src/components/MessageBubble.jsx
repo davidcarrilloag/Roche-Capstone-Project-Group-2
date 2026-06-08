@@ -1,56 +1,263 @@
-// Renders a single chat message. User messages are right-aligned; assistant
-// messages are left-aligned and may show a source citation + confidence.
+import { useState } from "react";
+
+const LONG_THRESHOLD = 280;
+
+function isLongText(text) {
+  return text.length > LONG_THRESHOLD || (text.match(/\n/g) || []).length > 3;
+}
+
+function formatTime(ts) {
+  if (!ts) return "";
+  const d = ts instanceof Date ? ts : new Date(ts);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function SourceCitation({ source }) {
+  if (!source || !source.title) return null;
+  const parts = [source.title, source.version, source.date].filter(Boolean);
+  const label = parts.join(" · ");
+
+  const baseStyle = {
+    fontSize: 11,
+    color: "#6B7280",
+    marginTop: 6,
+    display: "inline-block",
+    fontFamily: "inherit",
+  };
+
+  if (source.url) {
+    return (
+      <a
+        href={source.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ ...baseStyle, textDecoration: "none" }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "#0066CC")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "#6B7280")}
+      >
+        {label} ↗
+      </a>
+    );
+  }
+
+  return <span style={baseStyle}>{label}</span>;
+}
+
+function ShowMoreToggle({ expanded, onToggle }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        display: "block",
+        marginTop: 8,
+        fontSize: 12,
+        color: "#0066CC",
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        padding: 0,
+        fontFamily: "inherit",
+      }}
+    >
+      {expanded ? "Show less" : "Show more"}
+    </button>
+  );
+}
+
+function MessageContent({ message, expanded, onToggle, long }) {
+  const { text, responseType = "plain", actionLabel, actionUrl } = message;
+
+  const clampStyle =
+    !expanded && long
+      ? { overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical" }
+      : {};
+
+  const textEl = (
+    <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, ...clampStyle }}>
+      {text}
+    </div>
+  );
+
+  if (responseType === "steps") {
+    const lines = text.split("\n").filter(Boolean);
+    return (
+      <div>
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            style={{
+              padding: "7px 0",
+              borderBottom: i < lines.length - 1 ? "1px solid #E0E0E0" : "none",
+              lineHeight: 1.6,
+            }}
+          >
+            {line}
+          </div>
+        ))}
+        {long && <ShowMoreToggle expanded={expanded} onToggle={onToggle} />}
+      </div>
+    );
+  }
+
+  if (responseType === "action") {
+    return (
+      <div>
+        {textEl}
+        {long && <ShowMoreToggle expanded={expanded} onToggle={onToggle} />}
+        {actionLabel && (
+          <a
+            href={actionUrl ?? "#"}
+            target={actionUrl ? "_blank" : "_self"}
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-block",
+              marginTop: 10,
+              padding: "4px 10px",
+              fontSize: 12,
+              border: "1px solid #0066CC",
+              borderRadius: 4,
+              color: "#0066CC",
+              textDecoration: "none",
+              fontFamily: "inherit",
+            }}
+          >
+            {actionLabel}
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {textEl}
+      {long && <ShowMoreToggle expanded={expanded} onToggle={onToggle} />}
+    </>
+  );
+}
 
 export default function MessageBubble({ message }) {
   const isUser = message.role === "user";
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [bubbleHover, setBubbleHover] = useState(false);
+
+  const long = !isUser && isLongText(message.text);
+  const showConfidenceWarning =
+    !isUser &&
+    typeof message.confidence === "number" &&
+    message.confidence < 0.6;
+
+  function handleCopy() {
+    navigator.clipboard?.writeText(message.text).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (isUser) {
+    return (
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div
+          style={{
+            backgroundColor: "#0066CC",
+            color: "white",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontSize: 13,
+            maxWidth: "72%",
+            lineHeight: 1.5,
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {message.text}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-3`}>
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      {/* Confidence warning */}
+      {showConfidenceWarning && (
+        <div
+          style={{
+            borderLeft: "2px solid #F59E0B",
+            backgroundColor: "#FFFBEB",
+            padding: "8px 12px",
+            marginBottom: 8,
+            borderRadius: "0 4px 4px 0",
+            fontSize: 12,
+            color: "#92400E",
+            lineHeight: 1.5,
+          }}
+        >
+          Limited information found — please verify with your team lead or check the full SOP documentation.
+        </div>
+      )}
+
+      {/* Bot bubble */}
       <div
-        className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap ${
-          isUser
-            ? "bg-roche text-white rounded-br-sm"
-            : "bg-white text-gray-800 border border-gray-200 rounded-bl-sm"
-        }`}
+        style={{
+          position: "relative",
+          backgroundColor: "#F5F5F5",
+          borderLeft: "3px solid #0066CC",
+          borderRadius: 8,
+          padding: "12px 14px",
+          fontSize: 13,
+          color: "#333333",
+          lineHeight: 1.5,
+          maxWidth: "85%",
+        }}
+        onMouseEnter={() => setBubbleHover(true)}
+        onMouseLeave={() => setBubbleHover(false)}
       >
-        <div>{message.text}</div>
+        <MessageContent
+          message={message}
+          expanded={expanded}
+          onToggle={() => setExpanded((e) => !e)}
+          long={long}
+        />
 
-        {/* Source citation (assistant + RAG answers only) */}
-        {!isUser && message.source_doc && (
-          <div className="mt-2 text-xs text-gray-500 border-t border-gray-100 pt-1">
-            📄 Source: <span className="font-medium">{message.source_doc}</span>
-            {message.source_page !== "" && message.source_page != null
-              ? ` (ref ${message.source_page})`
-              : ""}
-            {message.source_last_updated
-              ? ` · updated ${message.source_last_updated}`
-              : ""}
-            {message.source_version
-              ? ` · ${message.source_version}`
-              : ""}
-            {message.confidence && (
-              <span
-                className={`ml-2 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide ${
-                  message.confidence === "high"
-                    ? "bg-green-100 text-green-700"
-                    : message.confidence === "medium"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-red-100 text-red-700"
-                }`}
-              >
-                {message.confidence}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Feedback acknowledgement marker */}
-        {!isUser && message.is_feedback && (
-          <div className="mt-2 text-xs text-purple-600">
-            💬 Logged as feedback{message.sentiment ? ` · ${message.sentiment}` : ""}
-          </div>
-        )}
+        {/* Copy button — visible on bubble hover */}
+        <button
+          onClick={handleCopy}
+          aria-label="Copy message"
+          title={copied ? "Copied!" : "Copy"}
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            fontSize: 11,
+            color: "#9CA3AF",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "2px 4px",
+            borderRadius: 3,
+            fontFamily: "inherit",
+            opacity: bubbleHover ? 1 : 0,
+            transition: "opacity 0.12s",
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
       </div>
+
+      {/* Source citation */}
+      <SourceCitation source={message.source} />
+
+      {/* Timestamp */}
+      {message.timestamp && (
+        <span
+          style={{
+            fontSize: 11,
+            color: "#9CA3AF",
+            marginTop: 4,
+          }}
+        >
+          {formatTime(message.timestamp)}
+        </span>
+      )}
     </div>
   );
 }

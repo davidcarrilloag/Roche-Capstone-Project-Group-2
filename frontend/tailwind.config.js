@@ -4,11 +4,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Roche brand-ish blue accent.
         roche: {
-          DEFAULT: "#0b41cd",
-          dark: "#082f93",
-          light: "#e8eefc",
+          DEFAULT: "#0066CC",
+          dark: "#0052A3",
+          light: "#E8F4FD",
+          "user-bubble": "#E8F0FE",
         },
       },
     },

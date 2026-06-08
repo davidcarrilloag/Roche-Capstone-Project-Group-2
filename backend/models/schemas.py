@@ -8,7 +8,7 @@ Keep this file dependency-free (only pydantic) so every teammate can import
 it without pulling in heavy services.
 """
 
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -125,6 +125,19 @@ class IncidentResponse(BaseModel):
         default=True,
         description="True when produced by the mock ServiceNow client.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Title generation
+# ---------------------------------------------------------------------------
+class TitleRequest(BaseModel):
+    messages: List[Dict[str, Any]] = Field(
+        ..., description="List of {role, text} message dicts from the conversation."
+    )
+
+
+class TitleResponse(BaseModel):
+    title: str = Field(..., description="Short generated title for the conversation.")
 
 
 # ---------------------------------------------------------------------------

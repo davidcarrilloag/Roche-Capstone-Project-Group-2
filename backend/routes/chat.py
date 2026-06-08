@@ -20,11 +20,12 @@ import logging
 
 from fastapi import APIRouter, Depends
 
-from models.schemas import ChatRequest, ChatResponse
+from models.schemas import ChatRequest, ChatResponse, TitleRequest, TitleResponse
 from services.classifier import IntentClassifier, get_intent_classifier
 from services.feedback_store import FeedbackStore, get_feedback_store
 from services.rag import RAGService, get_rag_service
 from services.sentiment import SentimentService, get_sentiment_service
+from services.title import TitleService, get_title_service
 from services.translator import TranslatorService, get_translator_service
 
 logger = logging.getLogger(__name__)
@@ -84,3 +85,12 @@ async def chat(
         sentiment=None,
         confidence=result.get("confidence"),
     )
+
+
+@router.post("/title", response_model=TitleResponse)
+async def generate_title(
+    request: TitleRequest,
+    title_service: TitleService = Depends(get_title_service),
+) -> TitleResponse:
+    title = title_service.generate(request.messages)
+    return TitleResponse(title=title)

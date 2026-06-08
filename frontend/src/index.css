@@ -1,6 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --color-text-primary: #333333;
+  --color-text-secondary: #6B7280;
+  --color-text-tertiary: #9CA3AF;
+  --color-border: #E0E0E0;
+  --color-border-subtle: #F5F5F5;
+  --color-accent: #0066CC;
+  --color-bg: #FFFFFF;
+  --color-bg-subtle: #F5F5F5;
+  --color-sidebar: #F5F5F5;
+  --color-msg-bot: #F3F4F6;
+  --color-msg-user: #0066CC;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+}
 
 html,
 body,
@@ -10,7 +37,43 @@ body,
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-  background-color: #f5f7fb;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+@keyframes typing-dot {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #9CA3AF;
+  border-radius: 50%;
+  animation: typing-dot 1.2s ease-in-out infinite;
+  display: inline-block;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Scrollbar — chat area */
+.chat-scroll::-webkit-scrollbar { width: 4px; }
+.chat-scroll::-webkit-scrollbar-track { background: transparent; }
+.chat-scroll::-webkit-scrollbar-thumb { background: #E0E0E0; border-radius: 2px; }
+.chat-scroll::-webkit-scrollbar-thumb:hover { background: #BDBDBD; }
+
+/* Scrollbar — shortcuts row */
+.shortcuts-scroll::-webkit-scrollbar { display: none; }
+.shortcuts-scroll { scrollbar-width: none; -ms-overflow-style: none; }
