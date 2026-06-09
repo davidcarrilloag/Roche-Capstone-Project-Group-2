@@ -51,6 +51,138 @@ function suggestsTicket(text) {
   );
 }
 
+const FOLLOW_UP_RULES = [
+  {
+    keywords: ["waste", "disposal", "chemical", "hazardous"],
+    suggestions: [
+      "What containers are required for chemical waste?",
+      "Who do I contact for waste pickup?",
+      "Are there separate bins for biological waste?",
+    ],
+  },
+  {
+    keywords: ["consumables", "order", "ordering", "procurement", "purchase"],
+    suggestions: [
+      "How long does delivery take?",
+      "What is the budget approval process?",
+      "Can I order from external suppliers?",
+    ],
+  },
+  {
+    keywords: ["equipment", "maintenance", "broken", "repair", "device", "instrument"],
+    suggestions: [
+      "Who is responsible for equipment maintenance?",
+      "How do I report a broken device?",
+      "What is the calibration schedule?",
+    ],
+  },
+  {
+    keywords: ["onboarding", "new employee", "training", "orientation"],
+    suggestions: [
+      "What safety trainings are mandatory?",
+      "How do I get lab access?",
+      "Who is my assigned onboarding buddy?",
+    ],
+  },
+  {
+    keywords: ["storage", "cold", "freezer", "refrigerat", "temperature"],
+    suggestions: [
+      "What are the temperature requirements?",
+      "How do I log cold storage incidents?",
+      "What happens if temperature goes out of range?",
+    ],
+  },
+  {
+    keywords: ["ticket", "incident", "servicenow", "support", "it support"],
+    suggestions: [
+      "What information is needed to open a ticket?",
+      "How do I check my ticket status?",
+      "What is the typical response time?",
+    ],
+  },
+  {
+    keywords: ["safety", "ppe", "protective", "gloves", "goggles", "emergency"],
+    suggestions: [
+      "Where is the nearest safety shower?",
+      "What PPE is required in my lab area?",
+      "How do I report a safety incident?",
+    ],
+  },
+  {
+    keywords: ["access", "badge", "door", "permission", "login", "password"],
+    suggestions: [
+      "How do I request additional access?",
+      "Who approves access requests?",
+      "What do I do if I'm locked out?",
+    ],
+  },
+];
+
+function suggestFollowUps(text) {
+  const t = text.toLowerCase();
+  const seen = new Set();
+  const results = [];
+  for (const rule of FOLLOW_UP_RULES) {
+    if (rule.keywords.some((kw) => t.includes(kw))) {
+      for (const s of rule.suggestions) {
+        if (!seen.has(s)) {
+          seen.add(s);
+          results.push(s);
+        }
+        if (results.length >= 3) return results;
+      }
+    }
+  }
+  return results;
+}
+
+function SuggestedFollowUps({ suggestions, onSelect }) {
+  if (!suggestions.length) return null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 6,
+        marginTop: 10,
+        paddingLeft: 2,
+      }}
+    >
+      {suggestions.map((s, i) => (
+        <FollowUpChip key={s} text={s} delay={i * 60} onClick={() => onSelect(s)} />
+      ))}
+    </div>
+  );
+}
+
+function FollowUpChip({ text, delay = 0, onClick }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className="chip-fade-up"
+      style={{
+        padding: "5px 12px",
+        fontSize: 12,
+        border: `1px solid ${hover ? "#0066CC" : "#C7DEFA"}`,
+        borderRadius: 14,
+        background: hover ? "#EBF3FB" : "#F5F9FF",
+        color: "#0066CC",
+        cursor: "pointer",
+        fontFamily: "inherit",
+        transition: "border-color 0.12s, background 0.12s",
+        textAlign: "left",
+        lineHeight: 1.4,
+        animationDelay: `${delay}ms`,
+      }}
+    >
+      {text}
+    </button>
+  );
+}
+
 function RocheLogo({ color = "#0066CC" }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="32" height="32" aria-hidden="true">
@@ -90,7 +222,7 @@ function WelcomeShortcut({ text, onClick }) {
   );
 }
 
-export default function ChatWindow({ language = "en", messages: propMessages, setMessages: propSetMessages }) {
+export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages }) {
   const [internalMessages, setInternalMessages] = useState([]);
   const messages = propMessages !== undefined ? propMessages : internalMessages;
   const setMessages = propSetMessages !== undefined ? propSetMessages : setInternalMessages;
@@ -155,7 +287,7 @@ export default function ChatWindow({ language = "en", messages: propMessages, se
     setBusy(true);
 
     try {
-      const res = await sendMessage(query, language);
+      const res = await sendMessage(query, language, sessionId);
       setMessages((prev) => [
         ...prev,
         {
@@ -286,6 +418,7 @@ export default function ChatWindow({ language = "en", messages: propMessages, se
                 return (
                   <div
                     key={msg.id}
+                    className="msg-fade-up"
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -303,39 +436,52 @@ export default function ChatWindow({ language = "en", messages: propMessages, se
                   ? [...messages].slice(0, idx).reverse().find((m) => m.role === "user")
                   : null;
 
+              const isLastAssistant =
+                msg.role === "assistant" &&
+                !busy &&
+                messages.slice(idx + 1).every((m) => m.isSystemDivider);
+
+              const followUps = isLastAssistant ? suggestFollowUps(msg.text) : [];
+
               return (
-                <div key={msg.id} style={{ marginBottom: 16 }}>
+                <div key={msg.id} className="msg-fade-up" style={{ marginBottom: 16 }}>
                   <MessageBubble message={msg} />
                   {msg.role === "assistant" && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        gap: 8,
-                        marginTop: 6,
-                        paddingLeft: 2,
-                      }}
-                    >
-                      <FeedbackButton messageId={msg.id} />
-                      {suggestsTicket(msg.text) && (
-                        <button
-                          onClick={() => openIncident(msg, prevUserMsg?.text)}
-                          style={{
-                            padding: "4px 10px",
-                            fontSize: 12,
-                            border: "1px solid #0066CC",
-                            borderRadius: 4,
-                            background: "none",
-                            color: "#0066CC",
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          Create incident
-                        </button>
-                      )}
-                    </div>
+                    <>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: 8,
+                          marginTop: 6,
+                          paddingLeft: 2,
+                        }}
+                      >
+                        <FeedbackButton messageId={msg.id} />
+                        {suggestsTicket(msg.text) && (
+                          <button
+                            onClick={() => openIncident(msg, prevUserMsg?.text)}
+                            style={{
+                              padding: "4px 10px",
+                              fontSize: 12,
+                              border: "1px solid #0066CC",
+                              borderRadius: 4,
+                              background: "none",
+                              color: "#0066CC",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            Create incident
+                          </button>
+                        )}
+                      </div>
+                      <SuggestedFollowUps
+                        suggestions={followUps}
+                        onSelect={(text) => send(text)}
+                      />
+                    </>
                   )}
                 </div>
               );
@@ -343,7 +489,7 @@ export default function ChatWindow({ language = "en", messages: propMessages, se
 
             {/* Typing indicator */}
             {busy && (
-              <div style={{ marginBottom: 16 }}>
+              <div className="msg-fade-up" style={{ marginBottom: 16 }}>
                 <div
                   style={{
                     display: "inline-flex",

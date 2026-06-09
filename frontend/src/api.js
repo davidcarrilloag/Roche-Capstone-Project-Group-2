@@ -12,10 +12,10 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-export function sendMessage(query, language = "en") {
+export function sendMessage(query, language = "en", sessionId = "") {
   return request("/chat", {
     method: "POST",
-    body: JSON.stringify({ message: query, language }),
+    body: JSON.stringify({ message: query, language, session_id: sessionId }),
   });
 }
 

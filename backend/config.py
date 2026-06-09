@@ -25,7 +25,7 @@ class Settings:
         # --- LLM (Groq) — used by sentiment / translator / intent classifier ---
         self.groq_api_key: str = os.getenv("GROQ_API_KEY", "")
         # Model is overridable so we can swap when Groq rotates model names.
-        self.groq_model: str = os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile")
+        self.groq_model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
         # --- RAG (Gemini via Google AI Studio) ---
         # Document Q&A runs in-process: Gemini embeddings + ChromaDB + Gemini LLM.

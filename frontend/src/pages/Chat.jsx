@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import ChatWindow from "../components/ChatWindow.jsx";
+import DocumentViewer from "../components/DocumentViewer.jsx";
 import { generateTitle } from "../api.js";
 import { MessageSquare, Clock, FileText, Settings, Globe, RotateCcw, Search, Menu } from "lucide-react";
 
@@ -164,14 +165,80 @@ function SessionItem({ session, active, onClick }) {
 // ── Documents ────────────────────────────────────────────
 
 const DOCUMENTS = [
-  { title: "Chemical Waste Disposal SOP", category: "Safety" },
-  { title: "New Employee Onboarding Guide", category: "Onboarding" },
-  { title: "Equipment Maintenance Procedures", category: "Equipment" },
-  { title: "Lab Consumables Ordering Guide", category: "Procurement" },
-  { title: "Cold Storage Handling Protocol", category: "Storage" },
+  {
+    title: "Chemical Waste Disposal SOP",
+    category: "Safety",
+    version: "v2.3",
+    lastUpdated: "2025-11-14",
+    content: [
+      { heading: "Purpose", text: "This procedure outlines the requirements for the safe collection, labeling, storage, and disposal of chemical waste generated in Roche laboratory facilities to ensure compliance with environmental regulations and personnel safety." },
+      { heading: "Scope", text: "Applicable to all laboratory personnel handling chemical substances in Building A and B research areas, including visiting scientists and contractors." },
+      { heading: "Waste Classification & Containers", text: "Halogenated solvents (chloroform, DCM, CCl₄) → Red container\nNon-halogenated solvents (ethanol, acetone, toluene) → Yellow container\nAqueous waste (pH 2–12) → Blue container\nAcids (pH < 2) → White container labeled \"ACID\"\nHeavy metal solutions → White container with hazard label" },
+      { heading: "Collection Procedure", text: "1. Use only EHS-approved waste containers — do not reuse reagent bottles.\n2. Label each container with: waste type, date started, your name and lab.\n3. Never mix halogenated and non-halogenated solvents.\n4. Fill containers to no more than 80% capacity to allow for expansion.\n5. Keep containers sealed when not actively adding waste." },
+      { heading: "Satellite Accumulation Area (SAA)", text: "Store waste at the SAA nearest to your bench. Maximum accumulation time is 3 days. Keep SAA clean, clearly labeled, and never block emergency exits. Temperature must remain between 15–25 °C away from direct sunlight or ignition sources." },
+      { heading: "Requesting Waste Pickup", text: "Submit a Waste Pickup Request via ServiceNow (EHS > Waste Pickup) at least 48 hours before your container reaches capacity. Include: container count, waste type(s), SAA room number, and your contact." },
+      { heading: "Spill Response", text: "Spills < 1 L: Use the spill kit located at each lab entrance. Contain, absorb, and place absorbed material in a waste bag labeled \"Contaminated Spill Waste.\"\nSpills > 1 L or unknown substances: Evacuate the area immediately and call EHS Emergency at ext. 7000 (24 h)." },
+    ],
+  },
+  {
+    title: "New Employee Onboarding Guide",
+    category: "Onboarding",
+    version: "v4.1",
+    lastUpdated: "2025-09-03",
+    content: [
+      { heading: "Welcome to Roche", text: "This guide walks new laboratory employees through the steps needed to become fully operational within your first two weeks. Your manager and an assigned onboarding buddy will support you throughout this process." },
+      { heading: "Week 1 Checklist", text: "□ Complete HR digital onboarding (MyHR portal) — Day 1\n□ Collect badge from Building Reception — Day 1\n□ Complete mandatory safety training: Lab Safety Basics, Chemical Handling, Emergency Procedures (iLearn platform) — by Day 3\n□ Set up lab notebook (physical or ELN) — Day 2\n□ Attend department introduction meeting — Day 2 or 3\n□ Request IT access for instruments and software — Day 1 (submit via ServiceNow)" },
+      { heading: "Week 2 Checklist", text: "□ Complete GxP Awareness training if working in regulated areas\n□ Shadow at least one senior scientist per day\n□ Complete lab-specific SOP readings assigned by your manager\n□ Obtain sign-off on equipment you will operate independently\n□ Schedule 1:1 with your manager for 30-day goals" },
+      { heading: "Lab Access & Badges", text: "Standard badge access is provisioned during Day 1 HR onboarding. For additional room access (cold rooms, BSL-2, controlled substance storage), submit an Access Request via ServiceNow with your manager's approval. Processing time: 2–3 business days." },
+      { heading: "Required Safety Trainings", text: "Mandatory before independent lab work:\n• Lab Safety Basics (60 min, iLearn)\n• Chemical Waste Handling (30 min, iLearn)\n• Emergency Procedures & Evacuation (45 min, iLearn)\n• Biosafety Level 1 (if applicable, 90 min)\n\nAll trainings renew annually. Late renewals automatically suspend lab access until completion." },
+      { heading: "Your Onboarding Buddy", text: "Your buddy is a peer scientist in your group who helps with day-to-day questions. They are not responsible for formal training but can guide you on lab culture, where to find supplies, and common workflows. Contact your manager if no buddy has been assigned." },
+    ],
+  },
+  {
+    title: "Equipment Maintenance Procedures",
+    category: "Equipment",
+    version: "v3.0",
+    lastUpdated: "2026-01-22",
+    content: [
+      { heading: "Purpose", text: "To ensure all laboratory instruments are maintained in calibrated, safe, and reliable condition through a structured preventive maintenance and fault-reporting program." },
+      { heading: "Maintenance Schedule", text: "Each instrument has a maintenance schedule logged in the Lab Equipment Management System (LEMS). Schedules are:\n• Daily: visual inspection, cleaning of external surfaces\n• Weekly: functional checks per instrument-specific SOP\n• Monthly: calibration verification by assigned operator\n• Annual: full calibration by certified service engineer (arranged by Facilities)" },
+      { heading: "Reporting a Malfunction", text: "1. Place an \"OUT OF SERVICE\" tag on the instrument immediately.\n2. Do not attempt repairs unless you are a certified instrument operator.\n3. Submit an Equipment Fault ticket via ServiceNow (Facilities > Equipment Fault).\n4. Notify your team lead and note the issue in the equipment logbook.\n5. Critical instruments (PCR, centrifuges, biosafety cabinets): also call Facilities at ext. 5500." },
+      { heading: "Calibration Records", text: "All calibration records are stored in LEMS. Before use, verify the calibration status label (green = valid, yellow = due soon, red = overdue — do not use). Overdue instruments must not be used and must be reported to Facilities." },
+      { heading: "Cleaning Requirements", text: "External surfaces: 70% IPA wipe-down after each use.\nInterior surfaces (where accessible): per instrument SOP.\nBiosafety cabinets: decontaminate with 70% IPA + UV cycle after each session.\nCentrifuge rotors: inspect for corrosion monthly; replace if any pitting is observed." },
+      { heading: "Approved Service Providers", text: "Only Facilities-approved vendors may service instruments under warranty or service contract. Using unauthorized technicians voids the warranty. For the current vendor list, check the Facilities SharePoint page or contact ext. 5500." },
+    ],
+  },
+  {
+    title: "Lab Consumables Ordering Guide",
+    category: "Procurement",
+    version: "v2.0",
+    lastUpdated: "2025-08-19",
+    content: [
+      { heading: "Overview", text: "All laboratory consumables (tips, tubes, reagents, gloves, media) must be ordered through the approved procurement channels. Purchasing outside these channels requires prior Procurement approval and may not be reimbursed." },
+      { heading: "Standard Ordering (eProcurement)", text: "1. Log in to the eProcurement portal (MyRoche > Procurement).\n2. Search for the item by catalog number or keyword.\n3. Select the approved supplier (highlighted in blue — preferred pricing).\n4. Confirm cost center with your manager before submitting.\n5. Orders under €500 are auto-approved; above €500 requires manager approval in the system." },
+      { heading: "Delivery Times", text: "Standard catalog items: 1–3 business days\nSpecialty reagents (cold chain): 3–5 business days\nControlled substances: 5–10 business days + EHS import permit\nInternational suppliers: 7–14 business days\n\nExpedited delivery is available at additional cost — requires manager approval in PO comments." },
+      { heading: "Stock Room Items", text: "Commonly used items (nitrile gloves S–XL, 1.5 mL tubes, tips 10–1000 µL, 15 mL and 50 mL conicals) are stocked in the Building A Stock Room (Room A-014, open 08:00–17:00). Scan your badge to log usage — this feeds directly into automatic reorder tracking." },
+      { heading: "Out-of-Stock & Substitutions", text: "If an item is out of stock, the system will suggest qualified substitutes. For critical reagents (antibodies, enzymes, standards), do not substitute without consulting your team lead, as lot-to-lot variation may affect experimental validity." },
+      { heading: "Returns & Discrepancies", text: "Report damaged or incorrect items within 5 business days of receipt via eProcurement > Order History > Report Issue. Do not discard damaged items before EHS or Procurement review." },
+    ],
+  },
+  {
+    title: "Cold Storage Handling Protocol",
+    category: "Storage",
+    version: "v1.8",
+    lastUpdated: "2025-12-01",
+    content: [
+      { heading: "Purpose", text: "To define the requirements for the proper storage, monitoring, and incident response for biological samples, reagents, and materials requiring controlled temperature environments (+4 °C, −20 °C, −80 °C, and liquid nitrogen)." },
+      { heading: "Temperature Zones", text: "+4 °C (refrigerators): short-term sample storage, buffers, antibodies in use\n−20 °C (standard freezers): enzymes, primers, working glycerol stocks, most kits\n−80 °C (ultra-low freezers): long-term cell stocks, irreplaceable samples, mRNA\nLiquid nitrogen (−196 °C): viably frozen cells, long-term biobank storage" },
+      { heading: "Storage Rules", text: "• Label all items with: contents, concentration, date, your initials.\n• Never store food or beverages in laboratory refrigerators.\n• Do not overfill units — maintain at least 20% free space for air circulation.\n• Freeze-sensitive items (cells, lentivirus) must never be stored at −20 °C.\n• All −80 °C freezers and LN₂ tanks are monitored 24/7 by the BioAlarm system." },
+      { heading: "Temperature Monitoring", text: "BioAlarm sends SMS and email alerts if any unit deviates by ±2 °C from set point for more than 15 minutes. Acknowledge alerts within 30 minutes. If unresolvable, call Facilities at ext. 5500 (24 h) and notify your team lead. Log all alarms in the unit's physical logbook." },
+      { heading: "Freezer Failure Response", text: "1. Do NOT open the freezer door unnecessarily — this preserves temperature.\n2. Call Facilities immediately: ext. 5500.\n3. If −80 °C unit fails: a backup unit is reserved in Room B-012. Coordinate with your team lead for emergency transfer.\n4. Document all transferred samples in the Freezer Incident Log (ELN template)." },
+      { heading: "Liquid Nitrogen Safety", text: "Always wear: cryogenic gloves, face shield, and lab coat when handling LN₂.\nWork in a well-ventilated area or use the fume hood for transfers.\nNever seal LN₂ in a closed container — pressure build-up can cause explosion.\nAnnual cryogenic safety training is mandatory for all LN₂ users." },
+    ],
+  },
 ];
 
-function DocumentCard({ title, category }) {
+function DocumentCard({ doc, onView }) {
   const [hover, setHover] = useState(false);
   return (
     <div
@@ -187,21 +254,27 @@ function DocumentCard({ title, category }) {
     >
       <FileText size={20} strokeWidth={1.5} color="#0066CC" style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "#333333", marginBottom: 4 }}>{title}</div>
-        <span
-          style={{
-            display: "inline-block",
-            fontSize: 11,
-            color: "#0066CC",
-            backgroundColor: "#EBF3FB",
-            borderRadius: 4,
-            padding: "2px 8px",
-          }}
-        >
-          {category}
-        </span>
+        <div style={{ fontSize: 13, fontWeight: 500, color: "#333333", marginBottom: 4 }}>{doc.title}</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span
+            style={{
+              display: "inline-block",
+              fontSize: 11,
+              color: "#0066CC",
+              backgroundColor: "#EBF3FB",
+              borderRadius: 4,
+              padding: "2px 8px",
+            }}
+          >
+            {doc.category}
+          </span>
+          {doc.version && (
+            <span style={{ fontSize: 11, color: "#9CA3AF" }}>{doc.version}</span>
+          )}
+        </div>
       </div>
       <button
+        onClick={onView}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
@@ -223,14 +296,26 @@ function DocumentCard({ title, category }) {
   );
 }
 
-function DocumentsPanel() {
+function DocumentsPanel({ language }) {
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
+  const [openDoc, setOpenDoc] = useState(null);
+
   const filtered = DOCUMENTS.filter(
     (d) =>
       d.title.toLowerCase().includes(search.toLowerCase()) ||
       d.category.toLowerCase().includes(search.toLowerCase())
   );
+
+  if (openDoc) {
+    return (
+      <DocumentViewer
+        doc={openDoc}
+        language={language}
+        onBack={() => setOpenDoc(null)}
+      />
+    );
+  }
 
   return (
     <div style={{ height: "100%", overflowY: "auto", backgroundColor: "#FFFFFF" }}>
@@ -277,7 +362,7 @@ function DocumentsPanel() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 640 }}>
           {filtered.length > 0 ? (
             filtered.map((doc) => (
-              <DocumentCard key={doc.title} title={doc.title} category={doc.category} />
+              <DocumentCard key={doc.title} doc={doc} onView={() => setOpenDoc(doc)} />
             ))
           ) : (
             <p style={{ fontSize: 13, color: "#9CA3AF" }}>No documents match your search.</p>
@@ -539,10 +624,11 @@ export default function Chat() {
         {/* Content */}
         <div style={{ flex: 1, overflow: "hidden" }}>
           {activeTab === "documents" ? (
-            <DocumentsPanel />
+            <DocumentsPanel language={language} />
           ) : (
             <ChatWindow
               key={activeSessionId}
+              sessionId={activeSessionId}
               language={language}
               messages={activeMessages}
               setMessages={setActiveMessages}
