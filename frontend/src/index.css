@@ -4,18 +4,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light mode tokens (default) ─────────────────────────────── */
 :root {
-  --color-text-primary: #333333;
-  --color-text-secondary: #6B7280;
-  --color-text-tertiary: #9CA3AF;
-  --color-border: #E0E0E0;
-  --color-border-subtle: #F5F5F5;
-  --color-accent: #0066CC;
-  --color-bg: #FFFFFF;
-  --color-bg-subtle: #F5F5F5;
-  --color-sidebar: #F5F5F5;
-  --color-msg-bot: #F3F4F6;
-  --color-msg-user: #0066CC;
+  /* Layout */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
@@ -27,6 +18,55 @@
   --fw-normal: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
+
+  /* Colour tokens */
+  --bg-main: #F8F9FB;
+  --bg-sidebar: linear-gradient(180deg, #001F5B 0%, #003380 100%);
+  --bg-card: #FFFFFF;
+  --bg-input: #FFFFFF;
+  --border-color: #E2E6EA;
+  --border-subtle: #F3F4F6;
+  --border-focus: #0066CC;
+  --text-primary: #1E293B;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --accent: #0066CC;
+  --accent-hover: #0052A3;
+  --accent-tint: #EBF3FB;
+  --accent-tint-border: #C7DEFA;
+  --bubble-user-bg: #0066CC;
+  --bubble-user-text: #FFFFFF;
+  --bubble-bot-bg: #FFFFFF;
+  --bubble-bot-text: #1E293B;
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.08);
+  --shadow-input: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* ── Dark mode overrides ──────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-main: #0F172A;
+  --bg-card: #1E293B;
+  --bg-input: #1E293B;
+  --border-color: #334155;
+  --border-subtle: #334155;
+  --border-focus: #3B82F6;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --accent-tint: rgba(59,130,246,0.12);
+  --accent-tint-border: rgba(59,130,246,0.25);
+  --bubble-bot-bg: #1E293B;
+  --bubble-bot-text: #F1F5F9;
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.3);
+  --shadow-input: 0 2px 12px rgba(0,0,0,0.3);
+}
+
+[data-theme="dark"] .sidebar {
+  background: linear-gradient(180deg, #080F1E 0%, #0D1627 100%) !important;
+}
+
+*, *::before, *::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease, box-shadow 0.3s ease;
 }
 
 html,
@@ -39,8 +79,8 @@ body,
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13px;
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -59,7 +99,7 @@ body {
 .typing-dot {
   width: 6px;
   height: 6px;
-  background-color: #9CA3AF;
+  background-color: var(--text-muted);
   border-radius: 50%;
   animation: typing-dot 1.2s ease-in-out infinite;
   display: inline-block;
@@ -71,8 +111,8 @@ body {
 /* Scrollbar — chat area */
 .chat-scroll::-webkit-scrollbar { width: 4px; }
 .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-.chat-scroll::-webkit-scrollbar-thumb { background: #E0E0E0; border-radius: 2px; }
-.chat-scroll::-webkit-scrollbar-thumb:hover { background: #BDBDBD; }
+.chat-scroll::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+.chat-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* Scrollbar — shortcuts row */
 .shortcuts-scroll::-webkit-scrollbar { display: none; }
@@ -110,6 +150,40 @@ body {
   animation: doc-slide-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Standalone mic button recording pulse */
+@keyframes mic-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0,102,204,0.45), 0 4px 12px rgba(0,0,0,0.15);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(0,102,204,0), 0 4px 12px rgba(0,0,0,0.15);
+    transform: scale(1.06);
+  }
+}
+
+.mic-pulse {
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes inline-mic-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0,102,204,0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(0,102,204,0);
+  }
+}
+
+.inline-mic-pulse {
+  animation: inline-mic-pulse 1.2s ease-in-out infinite;
+}
+
+/* Chat input bar textarea placeholder */
+.chat-textarea::placeholder {
+  color: var(--text-muted);
+}
+
 /* Staggered follow-up chip entrance */
 @keyframes chip-fade-up {
   from {
@@ -124,4 +198,47 @@ body {
 
 .chip-fade-up {
   animation: chip-fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── IncidentForm dark mode overrides ────────────────────────── */
+[data-theme="dark"] .incident-surface {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .incident-surface .border-gray-100 {
+  border-color: var(--border-color);
+}
+[data-theme="dark"] .incident-surface .text-gray-900 {
+  color: var(--text-primary);
+}
+[data-theme="dark"] .incident-surface .text-gray-800 {
+  color: var(--text-primary);
+}
+[data-theme="dark"] .incident-surface .text-gray-600 {
+  color: var(--text-secondary);
+}
+[data-theme="dark"] .incident-surface .text-gray-400 {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .incident-surface .hover\:text-gray-600:hover {
+  color: var(--text-secondary);
+}
+[data-theme="dark"] .incident-surface .hover\:bg-gray-100:hover {
+  background-color: var(--bg-main);
+}
+[data-theme="dark"] .incident-surface .border-gray-300 {
+  border-color: var(--border-color);
+}
+[data-theme="dark"] .incident-surface input,
+[data-theme="dark"] .incident-surface textarea {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+[data-theme="dark"] .incident-surface input::placeholder,
+[data-theme="dark"] .incident-surface textarea::placeholder {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .incident-surface .bg-red-50 {
+  background-color: rgba(239,68,68,0.15);
 }

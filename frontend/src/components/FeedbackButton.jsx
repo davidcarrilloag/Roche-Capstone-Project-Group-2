@@ -45,7 +45,7 @@ export default function FeedbackButton({ messageId }) {
           activeColor="#0066CC"
           ariaLabel="Helpful"
         >
-          <ThumbsUp size={14} strokeWidth={1.5} />
+          <ThumbsUp size={18} strokeWidth={1.5} />
         </FeedbackBtn>
         <FeedbackBtn
           onClick={() => rate("down")}
@@ -54,46 +54,62 @@ export default function FeedbackButton({ messageId }) {
           activeColor="#EF4444"
           ariaLabel="Not helpful"
         >
-          <ThumbsDown size={14} strokeWidth={1.5} />
+          <ThumbsDown size={18} strokeWidth={1.5} />
         </FeedbackBtn>
       </div>
 
       {showComment && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input
-            type="text"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder="What went wrong? (optional)"
-            style={{
-              flex: 1,
-              border: "1px solid #E0E0E0",
-              borderRadius: 6,
-              padding: "4px 10px",
-              fontSize: 12,
-              fontFamily: "inherit",
-              outline: "none",
-              color: "#333333",
-              backgroundColor: "#FFFFFF",
-            }}
-            onKeyDown={(e) => e.key === "Enter" && submitComment()}
-            autoFocus
-          />
-          <button
-            onClick={submitComment}
-            style={{
-              padding: "4px 10px",
-              fontSize: 12,
-              backgroundColor: "#0066CC",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            Send
-          </button>
+        <div
+          style={{
+            backgroundColor: "var(--bg-card)",
+            borderRadius: 10,
+            border: "1px solid var(--border-color)",
+            padding: "12px 16px",
+            marginTop: 4,
+            boxShadow: "var(--shadow-card)",
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)", marginBottom: 8 }}>
+            What went wrong?
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="text"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Tell us more (optional)"
+              style={{
+                flex: 1,
+                border: "1px solid var(--border-color)",
+                borderRadius: 8,
+                padding: "8px 12px",
+                fontSize: 13,
+                fontFamily: "inherit",
+                outline: "none",
+                color: "var(--text-primary)",
+                backgroundColor: "var(--bg-input)",
+              }}
+              onKeyDown={(e) => e.key === "Enter" && submitComment()}
+              autoFocus
+            />
+            <button
+              onClick={submitComment}
+              style={{
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 500,
+                backgroundColor: "var(--accent)",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                flexShrink: 0,
+              }}
+            >
+              Send
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -102,6 +118,7 @@ export default function FeedbackButton({ messageId }) {
 
 function FeedbackBtn({ children, onClick, disabled, active, activeColor, ariaLabel }) {
   const [hover, setHover] = useState(false);
+  const activeBg = activeColor === "#0066CC" ? "rgba(0,102,204,0.1)" : "rgba(239,68,68,0.1)";
   return (
     <button
       onClick={onClick}
@@ -113,15 +130,15 @@ function FeedbackBtn({ children, onClick, disabled, active, activeColor, ariaLab
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 28,
-        height: 28,
+        width: 44,
+        height: 44,
         border: "none",
-        background: "none",
+        background: active ? activeBg : hover ? "var(--border-color)" : "var(--border-subtle)",
         cursor: disabled ? "default" : "pointer",
-        color: active ? activeColor : hover ? "#6B7280" : "#D1D5DB",
-        borderRadius: 4,
+        color: active ? activeColor : "var(--text-secondary)",
+        borderRadius: "50%",
         padding: 0,
-        transition: "color 0.12s",
+        transition: "background 0.12s, color 0.12s",
       }}
     >
       {children}

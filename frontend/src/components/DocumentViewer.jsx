@@ -74,8 +74,8 @@ function MiniChat({ doc, language, onClose }) {
         transform: "translateX(-50%)",
         width: 360,
         height: 420,
-        backgroundColor: "#FFFFFF",
-        border: "1px solid #E0E0E0",
+        backgroundColor: "var(--bg-card)",
+        border: "1px solid var(--border-color)",
         borderRadius: 16,
         boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
         display: "flex",
@@ -87,21 +87,21 @@ function MiniChat({ doc, language, onClose }) {
       <div
         style={{
           padding: "12px 16px",
-          borderBottom: "1px solid #E0E0E0",
+          borderBottom: "1px solid var(--border-color)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           flexShrink: 0,
           borderRadius: "16px 16px 0 0",
-          backgroundColor: "#FAFAFA",
+          backgroundColor: "var(--bg-main)",
         }}
       >
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#001F5B" }}>Ask AI</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>Ask AI</div>
           <div
             style={{
               fontSize: 11,
-              color: "#6B7280",
+              color: "var(--text-secondary)",
               marginTop: 1,
               maxWidth: 260,
               overflow: "hidden",
@@ -118,15 +118,15 @@ function MiniChat({ doc, language, onClose }) {
             background: "none",
             border: "none",
             cursor: "pointer",
-            color: "#9CA3AF",
+            color: "var(--text-muted)",
             padding: 4,
             borderRadius: 4,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#333333")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#9CA3AF")}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
         >
           <X size={16} strokeWidth={1.5} />
         </button>
@@ -155,9 +155,9 @@ function MiniChat({ doc, language, onClose }) {
           >
             <div
               style={{
-                backgroundColor: msg.role === "user" ? "#0066CC" : "#F5F5F5",
-                color: msg.role === "user" ? "#FFFFFF" : "#333333",
-                borderLeft: msg.role === "assistant" ? "3px solid #0066CC" : "none",
+                backgroundColor: msg.role === "user" ? "var(--bubble-user-bg)" : "var(--bg-main)",
+                color: msg.role === "user" ? "var(--bubble-user-text)" : "var(--text-primary)",
+                borderLeft: msg.role === "assistant" ? "3px solid var(--accent)" : "none",
                 borderRadius: 8,
                 padding: "8px 12px",
                 fontSize: 12,
@@ -175,8 +175,8 @@ function MiniChat({ doc, language, onClose }) {
           <div className="msg-fade-up" style={{ display: "flex" }}>
             <div
               style={{
-                backgroundColor: "#F5F5F5",
-                borderLeft: "3px solid #0066CC",
+                backgroundColor: "var(--bg-main)",
+                borderLeft: "3px solid var(--accent)",
                 borderRadius: 8,
                 padding: "8px 12px",
                 display: "inline-flex",
@@ -197,7 +197,7 @@ function MiniChat({ doc, language, onClose }) {
       <div
         style={{
           padding: "10px 14px",
-          borderTop: "1px solid #E0E0E0",
+          borderTop: "1px solid var(--border-color)",
           flexShrink: 0,
           borderRadius: "0 0 16px 16px",
         }}
@@ -218,14 +218,14 @@ function MiniChat({ doc, language, onClose }) {
             disabled={busy}
             style={{
               flex: 1,
-              border: `1px solid ${inputFocused ? "#0066CC" : "#E0E0E0"}`,
+              border: `1px solid ${inputFocused ? "var(--border-focus)" : "var(--border-color)"}`,
               borderRadius: 8,
               padding: "7px 12px",
               fontSize: 12,
               fontFamily: "inherit",
               outline: "none",
-              color: "#333333",
-              backgroundColor: "#FAFAFA",
+              color: "var(--text-primary)",
+              backgroundColor: "var(--bg-input)",
               transition: "border-color 0.15s",
             }}
           />
@@ -237,7 +237,7 @@ function MiniChat({ doc, language, onClose }) {
               height: 30,
               borderRadius: 6,
               border: "none",
-              backgroundColor: "#0066CC",
+              backgroundColor: "var(--accent)",
               cursor: input.trim() && !busy ? "pointer" : "default",
               opacity: input.trim() && !busy ? 1 : 0.35,
               display: "flex",
@@ -265,7 +265,7 @@ export default function DocumentViewer({ doc, language, onBack }) {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "var(--bg-card)",
         position: "relative",
       }}
     >
@@ -280,7 +280,7 @@ export default function DocumentViewer({ doc, language, onBack }) {
             background: "none",
             border: "none",
             cursor: "pointer",
-            color: "#0066CC",
+            color: "var(--accent)",
             fontSize: 13,
             fontFamily: "inherit",
             padding: 0,
@@ -296,7 +296,7 @@ export default function DocumentViewer({ doc, language, onBack }) {
         <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
           <div style={{ flex: 1 }}>
             <h1
-              style={{ fontSize: 20, fontWeight: 600, color: "#001F5B", margin: "0 0 8px" }}
+              style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px" }}
             >
               {doc.title}
             </h1>
@@ -304,8 +304,8 @@ export default function DocumentViewer({ doc, language, onBack }) {
               <span
                 style={{
                   fontSize: 11,
-                  color: "#0066CC",
-                  backgroundColor: "#EBF3FB",
+                  color: "var(--accent)",
+                  backgroundColor: "var(--accent-tint)",
                   borderRadius: 4,
                   padding: "2px 8px",
                 }}
@@ -313,10 +313,10 @@ export default function DocumentViewer({ doc, language, onBack }) {
                 {doc.category}
               </span>
               {doc.version && (
-                <span style={{ fontSize: 11, color: "#9CA3AF" }}>{doc.version}</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{doc.version}</span>
               )}
               {doc.lastUpdated && (
-                <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
                   Updated {doc.lastUpdated}
                 </span>
               )}
@@ -325,7 +325,7 @@ export default function DocumentViewer({ doc, language, onBack }) {
         </div>
 
         <div
-          style={{ height: 1, backgroundColor: "#E0E0E0", margin: "20px 0 0" }}
+          style={{ height: 1, backgroundColor: "var(--border-color)", margin: "20px 0 0" }}
         />
       </div>
 
@@ -340,7 +340,7 @@ export default function DocumentViewer({ doc, language, onBack }) {
               style={{
                 fontSize: 13,
                 fontWeight: 600,
-                color: "#001F5B",
+                color: "var(--text-primary)",
                 marginBottom: 8,
                 textTransform: "uppercase",
                 letterSpacing: "0.04em",
@@ -351,7 +351,7 @@ export default function DocumentViewer({ doc, language, onBack }) {
             <p
               style={{
                 fontSize: 13,
-                color: "#333333",
+                color: "var(--text-primary)",
                 lineHeight: 1.75,
                 whiteSpace: "pre-wrap",
                 margin: 0,
@@ -382,11 +382,11 @@ export default function DocumentViewer({ doc, language, onBack }) {
             className="chip-fade-up"
             style={{
               fontSize: 11,
-              color: "#6B7280",
-              backgroundColor: "rgba(255,255,255,0.9)",
+              color: "var(--text-secondary)",
+              backgroundColor: "var(--bg-card)",
               borderRadius: 8,
               padding: "3px 8px",
-              border: "1px solid #E0E0E0",
+              border: "1px solid var(--border-color)",
               whiteSpace: "nowrap",
               pointerEvents: "none",
             }}
@@ -402,25 +402,21 @@ export default function DocumentViewer({ doc, language, onBack }) {
             height: 52,
             borderRadius: "50%",
             border: "none",
-            backgroundColor: miniChatOpen ? "#004FA3" : "#0066CC",
+            backgroundColor: miniChatOpen ? "var(--accent-hover)" : "var(--accent)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: miniChatOpen
-              ? "0 4px 16px rgba(0,79,163,0.45)"
-              : "0 4px 16px rgba(0,102,204,0.35)",
+            boxShadow: "0 4px 16px rgba(0,102,204,0.35)",
             transition: "background-color 0.15s, box-shadow 0.15s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = miniChatOpen ? "#003D82" : "#0052A3";
+            e.currentTarget.style.backgroundColor = "var(--accent-hover)";
             e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,102,204,0.5)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = miniChatOpen ? "#004FA3" : "#0066CC";
-            e.currentTarget.style.boxShadow = miniChatOpen
-              ? "0 4px 16px rgba(0,79,163,0.45)"
-              : "0 4px 16px rgba(0,102,204,0.35)";
+            e.currentTarget.style.backgroundColor = miniChatOpen ? "var(--accent-hover)" : "var(--accent)";
+            e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,102,204,0.35)";
           }}
         >
           <RocheLogo color="#FFFFFF" />

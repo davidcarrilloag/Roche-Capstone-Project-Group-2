@@ -19,7 +19,7 @@ function SourceCitation({ source }) {
 
   const baseStyle = {
     fontSize: 11,
-    color: "#6B7280",
+    color: "var(--text-secondary)",
     marginTop: 6,
     display: "inline-block",
     fontFamily: "inherit",
@@ -32,8 +32,8 @@ function SourceCitation({ source }) {
         target="_blank"
         rel="noopener noreferrer"
         style={{ ...baseStyle, textDecoration: "none" }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "#0066CC")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "#6B7280")}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
       >
         {label} ↗
       </a>
@@ -51,7 +51,7 @@ function ShowMoreToggle({ expanded, onToggle }) {
         display: "block",
         marginTop: 8,
         fontSize: 12,
-        color: "#0066CC",
+        color: "var(--accent)",
         background: "none",
         border: "none",
         cursor: "pointer",
@@ -87,7 +87,7 @@ function MessageContent({ message, expanded, onToggle, long }) {
             key={i}
             style={{
               padding: "7px 0",
-              borderBottom: i < lines.length - 1 ? "1px solid #E0E0E0" : "none",
+              borderBottom: i < lines.length - 1 ? "1px solid var(--border-color)" : "none",
               lineHeight: 1.6,
             }}
           >
@@ -114,9 +114,9 @@ function MessageContent({ message, expanded, onToggle, long }) {
               marginTop: 10,
               padding: "4px 10px",
               fontSize: 12,
-              border: "1px solid #0066CC",
+              border: "1px solid var(--accent)",
               borderRadius: 4,
-              color: "#0066CC",
+              color: "var(--accent)",
               textDecoration: "none",
               fontFamily: "inherit",
             }}
@@ -159,12 +159,12 @@ export default function MessageBubble({ message }) {
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <div
           style={{
-            backgroundColor: "#0066CC",
-            color: "white",
-            borderRadius: 8,
-            padding: "10px 14px",
+            backgroundColor: "var(--bubble-user-bg)",
+            color: "var(--bubble-user-text)",
+            borderRadius: 18,
+            padding: "14px 18px",
             fontSize: 13,
-            maxWidth: "72%",
+            maxWidth: "70%",
             lineHeight: 1.5,
             whiteSpace: "pre-wrap",
           }}
@@ -199,14 +199,15 @@ export default function MessageBubble({ message }) {
       <div
         style={{
           position: "relative",
-          backgroundColor: "#F5F5F5",
-          borderLeft: "3px solid #0066CC",
-          borderRadius: 8,
-          padding: "12px 14px",
+          backgroundColor: "var(--bubble-bot-bg)",
+          border: "1px solid var(--border-color)",
+          borderRadius: 18,
+          boxShadow: "var(--shadow-card)",
+          padding: "14px 18px",
           fontSize: 13,
-          color: "#333333",
+          color: "var(--bubble-bot-text)",
           lineHeight: 1.5,
-          maxWidth: "85%",
+          maxWidth: "75%",
         }}
         onMouseEnter={() => setBubbleHover(true)}
         onMouseLeave={() => setBubbleHover(false)}
@@ -228,7 +229,7 @@ export default function MessageBubble({ message }) {
             top: 8,
             right: 8,
             fontSize: 11,
-            color: "#9CA3AF",
+            color: "var(--text-muted)",
             background: "none",
             border: "none",
             cursor: "pointer",
@@ -251,7 +252,7 @@ export default function MessageBubble({ message }) {
         <span
           style={{
             fontSize: 11,
-            color: "#9CA3AF",
+            color: "var(--text-muted)",
             marginTop: 4,
           }}
         >

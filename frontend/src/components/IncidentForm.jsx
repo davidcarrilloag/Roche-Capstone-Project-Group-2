@@ -32,7 +32,7 @@ export default function IncidentForm({
       className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white w-full sm:rounded-2xl sm:max-w-md shadow-2xl flex flex-col max-h-[92vh]">
+      <div className="incident-surface bg-white w-full sm:rounded-2xl sm:max-w-md shadow-2xl flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900">
@@ -56,8 +56,8 @@ export default function IncidentForm({
                   width: 40,
                   height: 40,
                   borderRadius: "50%",
-                  backgroundColor: "#F0FAF0",
-                  border: "1px solid #BBF7D0",
+                  backgroundColor: "var(--accent-tint)",
+                  border: "1px solid var(--accent-tint-border)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",

@@ -12,24 +12,16 @@ const WELCOME_SHORTCUTS = [
   "How do I file an IT support ticket?",
 ];
 
-const QUICK_SHORTCUTS = [
-  "Order consumables",
-  "New employee guide",
-  "Return materials",
-  "Broken device",
-  "Waste disposal",
-];
-
 const PLACEHOLDERS_EN = [
-  "Ask about procedures, equipment, onboarding...",
-  "Ask me about lab waste disposal...",
-  "How do I order consumables?",
+  "Try: how do I return expired reagents?",
+  "Try: what PPE is required in my lab area?",
+  "Try: how do I request cold storage access?",
 ];
 
 const PLACEHOLDERS_DE = [
-  "Fragen zu Verfahren, Geräten, Einarbeitung...",
-  "Ich kann auf Deutsch antworten...",
-  "Wie bestelle ich Verbrauchsmaterialien?",
+  "Wie gehe ich mit abgelaufenen Reagenzien um?",
+  "Welche PSA ist in meinem Laborbereich erforderlich?",
+  "Wie beantrage ich Zugang zur Kühllagerung?",
 ];
 
 function genId() {
@@ -166,10 +158,10 @@ function FollowUpChip({ text, delay = 0, onClick }) {
       style={{
         padding: "5px 12px",
         fontSize: 12,
-        border: `1px solid ${hover ? "#0066CC" : "#C7DEFA"}`,
+        border: `1px solid ${hover ? "var(--accent)" : "var(--accent-tint-border)"}`,
         borderRadius: 14,
-        background: hover ? "#EBF3FB" : "#F5F9FF",
-        color: "#0066CC",
+        background: "var(--accent-tint)",
+        color: "var(--accent)",
         cursor: "pointer",
         fontFamily: "inherit",
         transition: "border-color 0.12s, background 0.12s",
@@ -183,13 +175,25 @@ function FollowUpChip({ text, delay = 0, onClick }) {
   );
 }
 
-function RocheLogo({ color = "#0066CC" }) {
+function RocheLogo({ color = "var(--accent)" }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="32" height="32" aria-hidden="true">
-      <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke={color} strokeWidth="2.5" />
-    </svg>
+    <div style={{
+      width: 60,
+      height: 60,
+      borderRadius: "50%",
+      background: "var(--accent-tint)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxShadow: "0 0 0 10px var(--accent-tint)",
+    }}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="36" height="36" aria-hidden="true">
+        <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke={color} strokeWidth="2.5" />
+      </svg>
+    </div>
   );
 }
+
 
 function WelcomeShortcut({ text, onClick }) {
   const [hover, setHover] = useState(false);
@@ -203,21 +207,26 @@ function WelcomeShortcut({ text, onClick }) {
         alignItems: "center",
         justifyContent: "space-between",
         gap: 12,
-        padding: "10px 12px",
-        borderRadius: 6,
-        border: `1px solid ${hover ? "#0066CC" : "#E0E0E0"}`,
+        padding: "18px 16px",
+        minHeight: 64,
+        borderRadius: 10,
+        border: `1px solid ${hover ? "var(--accent-tint-border)" : "var(--border-color)"}`,
+        borderLeft: `3px solid ${hover ? "var(--accent)" : "transparent"}`,
         cursor: "pointer",
-        backgroundColor: "#FFFFFF",
-        color: "#333333",
-        fontSize: 13,
+        backgroundColor: "var(--bg-card)",
+        color: hover ? "var(--accent-hover)" : "var(--text-primary)",
+        fontSize: 15,
+        fontWeight: 500,
         fontFamily: "inherit",
-        transition: "border-color 0.12s",
+        transition: "border-color 0.12s, box-shadow 0.15s, transform 0.12s, color 0.12s",
         width: "100%",
         textAlign: "left",
+        boxShadow: hover ? "0 4px 12px rgba(0,102,204,0.12)" : "0 1px 3px rgba(0,0,0,0.05)",
+        transform: hover ? "translateY(-1px)" : "none",
       }}
     >
-      <span>{text}</span>
-      <ChevronRight size={14} strokeWidth={1.5} color="#0066CC" style={{ flexShrink: 0 }} />
+      <span style={{ lineHeight: 1.4 }}>{text}</span>
+      <ChevronRight size={16} strokeWidth={2} color="var(--accent)" style={{ flexShrink: 0 }} />
     </button>
   );
 }
@@ -231,9 +240,16 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   const [incidentContext, setIncidentContext] = useState(null);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [inputFocused, setInputFocused] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [micHover, setMicHover] = useState(false);
+  const [clipHover, setClipHover] = useState(false);
+  const [sendHover, setSendHover] = useState(false);
   const endRef = useRef(null);
   const prevLangRef = useRef(language);
   const isFirstMount = useRef(true);
+  const textareaRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   const hasUserMessage = messages.some((m) => m.role === "user");
   const inputEmpty = !input.trim();
@@ -274,6 +290,17 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
       ]);
     }
   }, [language]);
+
+  useEffect(() => {
+    setSpeechSupported(!!(window.SpeechRecognition || window.webkitSpeechRecognition));
+  }, []);
+
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight, 160) + "px";
+  }, [input]);
 
   async function send(text) {
     const query = (text ?? input).trim();
@@ -328,6 +355,27 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
     }
   }
 
+  function toggleRecording() {
+    if (recording) {
+      recognitionRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      setInput((prev) => prev + (prev ? " " : "") + transcript);
+    };
+    recognition.onend = () => setRecording(false);
+    recognition.onerror = () => setRecording(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setRecording(true);
+  }
+
   function openIncident(botMsg, userText) {
     setIncidentContext({
       initialTitle: userText ? userText.slice(0, 80) : "Lab equipment issue",
@@ -346,7 +394,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "var(--bg-main)",
       }}
     >
       {/* ── Scrollable content ─────────────────── */}
@@ -368,19 +416,20 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
               alignItems: "center",
               justifyContent: "center",
               padding: "40px 24px",
+              background: "radial-gradient(ellipse 60% 50% at 50% 42%, var(--accent-tint) 0%, var(--bg-main) 70%)",
             }}
           >
             <div style={{ width: "100%", maxWidth: 460 }}>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
                 <RocheLogo />
               </div>
               <div
                 style={{
                   textAlign: "center",
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: "#001F5B",
-                  marginBottom: 6,
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                  marginBottom: 8,
                 }}
               >
                 Lab Assistant
@@ -389,14 +438,14 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                 style={{
                   textAlign: "center",
                   fontSize: 13,
-                  color: "#333333",
-                  marginBottom: 28,
+                  color: "var(--text-secondary)",
+                  marginBottom: 20,
                   lineHeight: 1.5,
                 }}
               >
                 Ask anything about lab procedures, equipment, onboarding, or support.
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {WELCOME_SHORTCUTS.map((text) => (
                   <WelcomeShortcut key={text} text={text} onClick={() => send(text)} />
                 ))}
@@ -426,7 +475,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                       margin: "16px 0",
                     }}
                   >
-                    <span style={{ fontSize: 11, color: "#9CA3AF" }}>{msg.text}</span>
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{msg.text}</span>
                   </div>
                 );
               }
@@ -465,10 +514,10 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                             style={{
                               padding: "4px 10px",
                               fontSize: 12,
-                              border: "1px solid #0066CC",
+                              border: "1px solid var(--accent)",
                               borderRadius: 4,
                               background: "none",
-                              color: "#0066CC",
+                              color: "var(--accent)",
                               cursor: "pointer",
                               fontFamily: "inherit",
                             }}
@@ -495,8 +544,8 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 4,
-                    backgroundColor: "#F5F5F5",
-                    borderLeft: "3px solid #0066CC",
+                    backgroundColor: "var(--bg-card)",
+                    borderLeft: "3px solid var(--accent)",
                     borderRadius: 8,
                     padding: "10px 14px",
                   }}
@@ -517,108 +566,155 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
       <div
         style={{
           flexShrink: 0,
-          padding: "12px 20px 16px",
-          backgroundColor: "#F5F5F5",
+          padding: "16px 20px",
+          backgroundColor: "var(--bg-main)",
         }}
       >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send();
-          }}
-          style={{ maxWidth: 680, margin: "0 auto" }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              backgroundColor: "#F5F5F5",
-              border: `1px solid ${inputFocused ? "#0066CC" : "#E0E0E0"}`,
-              borderRadius: 8,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-              padding: "0 12px",
-              height: 44,
-              transition: "border-color 0.15s",
+        <div style={{ maxWidth: 680, margin: "0 auto" }}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send();
             }}
           >
-            <Paperclip size={15} strokeWidth={1.5} color="#9CA3AF" style={{ flexShrink: 0 }} />
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => setInputFocused(false)}
-              placeholder={placeholders[placeholderIdx]}
-              disabled={busy}
+            <div
               style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
-                fontSize: 13,
-                fontFamily: "inherit",
-                color: "#333333",
-                backgroundColor: "transparent",
-                caretColor: "#0066CC",
-              }}
-            />
-            <button
-              type="submit"
-              disabled={busy || inputEmpty}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                border: "none",
-                cursor: inputEmpty ? "default" : "pointer",
-                backgroundColor: "#0066CC",
-                flexShrink: 0,
-                opacity: inputEmpty ? 0 : 1,
-                transition: "opacity 0.15s",
-                pointerEvents: inputEmpty ? "none" : "auto",
-              }}
-            >
-              <ArrowUp size={14} strokeWidth={2} color="white" />
-            </button>
-            <Mic size={15} strokeWidth={1.5} color="#0066CC" style={{ flexShrink: 0 }} />
-          </div>
-        </form>
-
-        {/* Quick text shortcuts */}
-        <div
-          className="shortcuts-scroll"
-          style={{
-            maxWidth: 680,
-            margin: "8px auto 0",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            overflowX: "auto",
-          }}
-        >
-          {QUICK_SHORTCUTS.map((label) => (
-            <button
-              key={label}
-              onClick={() => send(label)}
-              style={{
-                flexShrink: 0,
-                background: "#EBF3FB",
-                border: "none",
-                cursor: "pointer",
-                fontSize: 11,
-                color: "#0066CC",
-                fontFamily: "inherit",
-                padding: "4px 10px",
-                display: "flex",
-                alignItems: "center",
                 borderRadius: 16,
+                backgroundColor: "var(--bg-input)",
+                border: `1.5px solid ${inputFocused ? "var(--border-focus)" : "var(--border-color)"}`,
+                boxShadow: "var(--shadow-input)",
+                minHeight: 56,
+                display: "flex",
+                flexDirection: "column",
+                transition: "border-color 0.15s",
+                overflow: "hidden",
               }}
             >
-              {label}
-            </button>
-          ))}
+              {/* Row 1: Textarea */}
+              <textarea
+                ref={textareaRef}
+                className="chat-textarea"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                placeholder={placeholders[placeholderIdx]}
+                disabled={busy}
+                rows={1}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  resize: "none",
+                  width: "100%",
+                  fontFamily: "inherit",
+                  fontSize: 14,
+                  color: "var(--text-primary)",
+                  backgroundColor: "transparent",
+                  padding: "14px 16px",
+                  maxHeight: 160,
+                  overflowY: "auto",
+                  caretColor: "var(--accent)",
+                  lineHeight: 1.5,
+                  boxSizing: "border-box",
+                  display: "block",
+                }}
+              />
+
+              {/* Row 2: Toolbar */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 12px",
+                  borderTop: "1px solid var(--border-subtle)",
+                  flexShrink: 0,
+                  flexWrap: "nowrap",
+                }}
+              >
+                {/* Left: Paperclip attachment ghost button */}
+                <button
+                  type="button"
+                  onMouseEnter={() => setClipHover(true)}
+                  onMouseLeave={() => setClipHover(false)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    border: "none",
+                    backgroundColor: "transparent",
+                    cursor: "pointer",
+                    padding: 0,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Paperclip size={16} strokeWidth={1.5} color={clipHover ? "var(--accent)" : "var(--text-muted)"} />
+                </button>
+
+                {/* Right: Mic + Send */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {speechSupported && (
+                    <button
+                      type="button"
+                      title={recording ? "Stop recording" : "Voice input"}
+                      onClick={toggleRecording}
+                      onMouseEnter={() => setMicHover(true)}
+                      onMouseLeave={() => setMicHover(false)}
+                      className={recording ? "inline-mic-pulse" : ""}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        border: `1.5px solid ${recording || micHover ? "var(--accent)" : "var(--border-color)"}`,
+                        backgroundColor: recording ? "var(--accent)" : "transparent",
+                        cursor: "pointer",
+                        padding: 0,
+                        flexShrink: 0,
+                        transition: "border-color 0.15s, background-color 0.15s",
+                      }}
+                    >
+                      <Mic size={16} strokeWidth={1.5} color={recording ? "#FFFFFF" : micHover ? "var(--accent)" : "var(--text-secondary)"} />
+                    </button>
+                  )}
+                  {!inputEmpty && (
+                    <button
+                      type="submit"
+                      onMouseEnter={() => setSendHover(true)}
+                      onMouseLeave={() => setSendHover(false)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        border: "none",
+                        backgroundColor: sendHover ? "var(--accent-hover)" : "var(--accent)",
+                        cursor: "pointer",
+                        padding: 0,
+                        flexShrink: 0,
+                        transition: "background-color 0.15s",
+                      }}
+                    >
+                      <ArrowUp size={16} strokeWidth={2} color="white" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </form>
         </div>
       </div>
 

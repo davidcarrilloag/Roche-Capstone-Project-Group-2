@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import ChatWindow from "../components/ChatWindow.jsx";
 import DocumentViewer from "../components/DocumentViewer.jsx";
 import { generateTitle } from "../api.js";
-import { MessageSquare, Clock, FileText, Settings, Globe, RotateCcw, Search, Menu } from "lucide-react";
+import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check } from "lucide-react";
 
 function genId() {
   return Math.random().toString(36).slice(2, 11);
@@ -11,9 +11,20 @@ function genId() {
 
 function RocheLogo({ color = "#FFFFFF" }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="28" height="28" aria-hidden="true">
-      <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke={color} strokeWidth="2.5" />
-    </svg>
+    <div style={{
+      width: 36,
+      height: 36,
+      borderRadius: "50%",
+      backgroundColor: "rgba(255,255,255,0.15)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    }}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="26" height="26" aria-hidden="true">
+        <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke={color} strokeWidth="3" />
+      </svg>
+    </div>
   );
 }
 
@@ -42,15 +53,16 @@ function NavItem({ icon, label, active, onClick }) {
     <button
       style={{
         ...BASE_NAV_STYLE,
-        backgroundColor: on ? "rgba(0,0,0,0.15)" : "transparent",
-        color: "#FFFFFF",
-        borderLeft: on ? "3px solid #FFFFFF" : "3px solid transparent",
+        backgroundColor: on ? "rgba(255,255,255,0.15)" : "transparent",
+        borderRadius: 6,
+        color: on ? "#FFFFFF" : "rgba(255,255,255,0.9)",
+        borderLeft: "none",
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={onClick}
     >
-      <span style={{ display: "flex", color: "#FFFFFF" }}>{icon}</span>
+      <span style={{ display: "flex", color: on ? "#FFFFFF" : "rgba(255,255,255,0.9)" }}>{icon}</span>
       {label}
     </button>
   );
@@ -64,14 +76,15 @@ function NavLink({ icon, label, to }) {
       style={{
         ...BASE_NAV_STYLE,
         display: "flex",
-        backgroundColor: hover ? "rgba(0,0,0,0.15)" : "transparent",
-        color: "#FFFFFF",
-        borderLeft: hover ? "3px solid #FFFFFF" : "3px solid transparent",
+        backgroundColor: hover ? "rgba(255,255,255,0.15)" : "transparent",
+        borderRadius: 6,
+        color: hover ? "#FFFFFF" : "rgba(255,255,255,0.9)",
+        borderLeft: "none",
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <span style={{ display: "flex", color: "#FFFFFF" }}>{icon}</span>
+      <span style={{ display: "flex", color: hover ? "#FFFFFF" : "rgba(255,255,255,0.9)" }}>{icon}</span>
       {label}
     </Link>
   );
@@ -89,15 +102,15 @@ function TopbarBtn({ children, title, onClick }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 28,
-        height: 28,
+        width: 36,
+        height: 36,
         border: "none",
-        background: "none",
+        background: hover ? "color-mix(in srgb, var(--bg-card) 60%, transparent)" : "none",
         cursor: "pointer",
-        color: hover ? "#0052A3" : "#0066CC",
-        borderRadius: 4,
+        color: hover ? "var(--text-primary)" : "var(--text-secondary)",
+        borderRadius: 6,
         padding: 0,
-        transition: "color 0.12s",
+        transition: "color 0.12s, background 0.15s",
       }}
     >
       {children}
@@ -144,9 +157,9 @@ function SessionItem({ session, active, onClick }) {
         padding: "5px 12px 5px 9px",
         borderRadius: 6,
         border: "none",
-        borderLeft: on ? "3px solid rgba(255,255,255,0.6)" : "3px solid transparent",
-        backgroundColor: on ? "rgba(0,0,0,0.12)" : "transparent",
-        color: on ? "#FFFFFF" : "rgba(255,255,255,0.7)",
+        borderLeft: "none",
+        backgroundColor: on ? "rgba(255,255,255,0.15)" : "transparent",
+        color: on ? "#FFFFFF" : "rgba(255,255,255,0.9)",
         fontSize: 12,
         fontFamily: "inherit",
         cursor: "pointer",
@@ -246,22 +259,22 @@ function DocumentCard({ doc, onView }) {
         display: "flex",
         alignItems: "center",
         gap: 14,
-        backgroundColor: "#FFFFFF",
-        border: "1px solid #E0E0E0",
+        backgroundColor: "var(--bg-card)",
+        border: "1px solid var(--border-color)",
         borderRadius: 8,
         padding: 16,
       }}
     >
-      <FileText size={20} strokeWidth={1.5} color="#0066CC" style={{ flexShrink: 0 }} />
+      <FileText size={20} strokeWidth={1.5} color="var(--accent)" style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "#333333", marginBottom: 4 }}>{doc.title}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", marginBottom: 4 }}>{doc.title}</div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span
             style={{
               display: "inline-block",
               fontSize: 11,
-              color: "#0066CC",
-              backgroundColor: "#EBF3FB",
+              color: "var(--accent)",
+              backgroundColor: "var(--accent-tint)",
               borderRadius: 4,
               padding: "2px 8px",
             }}
@@ -269,7 +282,7 @@ function DocumentCard({ doc, onView }) {
             {doc.category}
           </span>
           {doc.version && (
-            <span style={{ fontSize: 11, color: "#9CA3AF" }}>{doc.version}</span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{doc.version}</span>
           )}
         </div>
       </div>
@@ -281,9 +294,9 @@ function DocumentCard({ doc, onView }) {
           flexShrink: 0,
           padding: "6px 14px",
           fontSize: 12,
-          color: hover ? "#FFFFFF" : "#0066CC",
-          backgroundColor: hover ? "#0066CC" : "transparent",
-          border: "1px solid #0066CC",
+          color: hover ? "#FFFFFF" : "var(--accent)",
+          backgroundColor: hover ? "var(--accent)" : "transparent",
+          border: "1px solid var(--accent)",
           borderRadius: 6,
           cursor: "pointer",
           fontFamily: "inherit",
@@ -318,12 +331,12 @@ function DocumentsPanel({ language }) {
   }
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", backgroundColor: "#FFFFFF" }}>
+    <div style={{ height: "100%", overflowY: "auto", backgroundColor: "var(--bg-card)" }}>
       <div style={{ padding: "32px 40px" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: "#001F5B", margin: "0 0 4px" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px" }}>
           Documents
         </h1>
-        <p style={{ fontSize: 13, color: "#6B7280", margin: "0 0 24px" }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 24px" }}>
           Browse and search documentation
         </p>
         <div
@@ -331,17 +344,17 @@ function DocumentsPanel({ language }) {
             display: "flex",
             alignItems: "center",
             gap: 8,
-            border: `1px solid ${searchFocused ? "#0066CC" : "#E0E0E0"}`,
+            border: `1px solid ${searchFocused ? "var(--border-focus)" : "var(--border-color)"}`,
             borderRadius: 8,
             padding: "0 12px",
             height: 40,
-            backgroundColor: "#F5F5F5",
+            backgroundColor: "var(--bg-main)",
             marginBottom: 24,
             maxWidth: 480,
             transition: "border-color 0.15s",
           }}
         >
-          <Search size={15} strokeWidth={1.5} color="#9CA3AF" style={{ flexShrink: 0 }} />
+          <Search size={15} strokeWidth={1.5} color="var(--text-muted)" style={{ flexShrink: 0 }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -354,7 +367,7 @@ function DocumentsPanel({ language }) {
               outline: "none",
               fontSize: 13,
               fontFamily: "inherit",
-              color: "#333333",
+              color: "var(--text-primary)",
               backgroundColor: "transparent",
             }}
           />
@@ -365,11 +378,212 @@ function DocumentsPanel({ language }) {
               <DocumentCard key={doc.title} doc={doc} onView={() => setOpenDoc(doc)} />
             ))
           ) : (
-            <p style={{ fontSize: 13, color: "#9CA3AF" }}>No documents match your search.</p>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No documents match your search.</p>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function ThemeToggle({ darkMode, onToggle }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <Sun size={12} strokeWidth={1.5} color={!darkMode ? "var(--accent)" : "var(--text-muted)"} />
+      <button
+        onClick={onToggle}
+        title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        style={{
+          position: "relative",
+          width: 44,
+          height: 24,
+          borderRadius: 12,
+          border: "none",
+          cursor: "pointer",
+          padding: 0,
+          backgroundColor: darkMode ? "#0066CC" : "#D1D5DB",
+          transition: "background-color 0.25s ease",
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            top: 3,
+            left: 3,
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            backgroundColor: "#FFFFFF",
+            transform: darkMode ? "translateX(20px)" : "translateX(0)",
+            transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+            display: "block",
+          }}
+        />
+      </button>
+      <Moon size={12} strokeWidth={1.5} color={darkMode ? "var(--accent)" : "var(--text-muted)"} />
+    </div>
+  );
+}
+
+// ── Language selector ────────────────────────────────────
+
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "de", label: "Deutsch" },
+];
+
+function SidebarBottomBtn({ icon, label, onClick }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        width: "100%",
+        height: 40,
+        padding: "0 8px",
+        borderRadius: 8,
+        border: "none",
+        cursor: "pointer",
+        backgroundColor: hover ? "rgba(255,255,255,0.08)" : "transparent",
+        color: hover ? "#FFFFFF" : "rgba(255,255,255,0.7)",
+        fontSize: 13,
+        fontFamily: "inherit",
+        transition: "background-color 0.12s, color 0.12s",
+      }}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function LangOption({ lang, isActive, onSelect }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onSelect}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        width: "100%",
+        height: 40,
+        padding: "0 16px",
+        gap: 8,
+        border: "none",
+        cursor: "pointer",
+        backgroundColor: hover ? "rgba(0,0,0,0.05)" : "transparent",
+        color: isActive ? "var(--accent)" : "var(--text-primary)",
+        fontSize: 13,
+        fontFamily: "inherit",
+        transition: "background-color 0.1s",
+      }}
+    >
+      <span style={{ flex: 1, textAlign: "left" }}>{lang.label}</span>
+      <span style={{ fontSize: 11, color: isActive ? "var(--accent)" : "var(--text-secondary)" }}>
+        {lang.code.toUpperCase()}
+      </span>
+      {isActive && <Check size={13} strokeWidth={2.5} style={{ flexShrink: 0 }} />}
+    </button>
+  );
+}
+
+function LanguageSelector({ language, onSelectLanguage }) {
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
+  const [popoverPos, setPopoverPos] = useState(null);
+  const btnRef = useRef(null);
+  const popoverRef = useRef(null);
+  const currentLang = LANGUAGES.find((l) => l.code === language);
+
+  function handleOpen() {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPopoverPos({ top: rect.top, left: rect.left, width: rect.width });
+    }
+    setOpen((o) => !o);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e) {
+      if (
+        popoverRef.current && !popoverRef.current.contains(e.target) &&
+        btnRef.current && !btnRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={handleOpen}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          width: "100%",
+          height: 40,
+          padding: "0 8px",
+          borderRadius: 8,
+          border: "none",
+          cursor: "pointer",
+          backgroundColor: hover ? "rgba(255,255,255,0.08)" : "transparent",
+          color: hover ? "#FFFFFF" : "rgba(255,255,255,0.7)",
+          fontSize: 13,
+          fontFamily: "inherit",
+          transition: "background-color 0.12s, color 0.12s",
+        }}
+      >
+        <Globe size={15} strokeWidth={1.5} />
+        <span style={{ flex: 1, textAlign: "left" }}>{currentLang?.code.toUpperCase()}</span>
+        <ChevronUp
+          size={14}
+          strokeWidth={1.5}
+          style={{ transform: open ? "rotate(0deg)" : "rotate(180deg)", transition: "transform 0.2s" }}
+        />
+      </button>
+      {open && popoverPos && (
+        <div
+          ref={popoverRef}
+          style={{
+            position: "fixed",
+            bottom: window.innerHeight - popoverPos.top + 4,
+            left: popoverPos.left,
+            width: popoverPos.width,
+            backgroundColor: "var(--bg-card)",
+            border: "1px solid var(--border-color)",
+            borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+            zIndex: 1000,
+            overflow: "hidden",
+          }}
+        >
+          {LANGUAGES.map((lang) => (
+            <LangOption
+              key={lang.code}
+              lang={lang}
+              isActive={language === lang.code}
+              onSelect={() => { onSelectLanguage(lang.code); setOpen(false); }}
+            />
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -380,6 +594,16 @@ export default function Chat() {
   const [toastDismissed, setToastDismissed] = useState(false);
   const [activeTab, setActiveTab] = useState("chat");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [darkMode, setDarkMode] = useState(
+    () => document.documentElement.getAttribute("data-theme") === "dark"
+  );
+
+  function toggleDarkMode() {
+    const next = !darkMode;
+    setDarkMode(next);
+    document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
+    try { localStorage.setItem("theme", next ? "dark" : "light"); } catch (e) {}
+  }
 
   // Session state — messages are stored here and passed down to ChatWindow
   const [sessions, setSessions] = useState([]);
@@ -479,11 +703,12 @@ export default function Chat() {
     >
       {/* ── Sidebar ───────────────────────────────── */}
       <aside
+        className="sidebar"
         style={{
           width: sidebarOpen ? 240 : 0,
           flexShrink: 0,
-          backgroundColor: "#0066CC",
-          borderRight: "1px solid #004FA3",
+          background: "var(--bg-sidebar)",
+          borderRight: "1px solid rgba(0,26,77,0.8)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -517,7 +742,6 @@ export default function Chat() {
               active={activeTab === "chat" && !activeMessages.some((m) => m.role === "user")}
               onClick={startNewChat}
             />
-            <NavLink icon={<Clock size={16} strokeWidth={1.5} />} label="History" to="/dashboard" />
             <NavItem
               icon={<FileText size={16} strokeWidth={1.5} />}
               label="Documents"
@@ -561,14 +785,10 @@ export default function Chat() {
           </div>
 
           {/* Bottom nav */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
-            <div style={{ height: 1, backgroundColor: "rgba(255,255,255,0.2)", marginBottom: 8 }} />
-            <NavItem icon={<Settings size={16} strokeWidth={1.5} />} label="Settings" />
-            <NavItem
-              icon={<Globe size={16} strokeWidth={1.5} />}
-              label={language.toUpperCase()}
-              onClick={toggleLanguage}
-            />
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ height: 1, backgroundColor: "rgba(255,255,255,0.1)", margin: "8px 0" }} />
+            <SidebarBottomBtn icon={<Settings size={15} strokeWidth={1.5} />} label="Settings" />
+            <LanguageSelector language={language} onSelectLanguage={setLanguage} />
           </div>
         </div>
       </aside>
@@ -580,21 +800,22 @@ export default function Chat() {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "var(--bg-main)",
           minWidth: 0,
         }}
       >
         {/* Topbar */}
         <header
           style={{
-            height: 48,
+            height: 52,
             flexShrink: 0,
-            backgroundColor: "#FFFFFF",
-            borderBottom: "1px solid #E0E0E0",
+            backgroundColor: "var(--bg-main)",
+            backdropFilter: "blur(8px)",
+            borderBottom: "1px solid var(--border-color)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 16px",
+            padding: "0 0 0 16px",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -604,20 +825,12 @@ export default function Chat() {
             >
               <Menu size={16} strokeWidth={1.5} />
             </TopbarBtn>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#001F5B" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
               {activeTab === "documents" ? "Documents" : "Chat"}
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <TopbarBtn
-              title={`Switch to ${language === "en" ? "DE" : "EN"}`}
-              onClick={toggleLanguage}
-            >
-              <Globe size={16} strokeWidth={1.5} />
-            </TopbarBtn>
-            <TopbarBtn title="New chat" onClick={startNewChat}>
-              <RotateCcw size={16} strokeWidth={1.5} />
-            </TopbarBtn>
+          <div style={{ display: "flex", alignItems: "center", paddingRight: 20 }}>
+            <ThemeToggle darkMode={darkMode} onToggle={toggleDarkMode} />
           </div>
         </header>
 
