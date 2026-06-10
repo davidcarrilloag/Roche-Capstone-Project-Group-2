@@ -33,7 +33,7 @@ router = APIRouter(tags=["chat"])
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(
+def chat(
     request: ChatRequest,
     rag: RAGService = Depends(get_rag_service),
     classifier: IntentClassifier = Depends(get_intent_classifier),
@@ -41,6 +41,9 @@ async def chat(
     translator: TranslatorService = Depends(get_translator_service),
     feedback_store: FeedbackStore = Depends(get_feedback_store),
 ) -> ChatResponse:
+    # NOTE: sync def (not async) so FastAPI runs this in a threadpool. The RAG
+    # uses the blocking Gemini gRPC client, which would deadlock the event loop
+    # if called from an async route.
     message = request.message
 
     # 1. Language: trust the client if provided, else detect.
@@ -49,11 +52,13 @@ async def chat(
     # 2. Intent.
     intent = classifier.classify(message)
 
+    session_id = request.session_id or "web"
+
     # 3a. Feedback branch.
     if intent == "feedback":
         tone = sentiment.analyze(message)
         feedback_store.add(
-            session_id=request.session_id,
+            session_id=session_id,
             message=message,
             sentiment=tone,
         )
@@ -74,12 +79,14 @@ async def chat(
 
     # 3b. Knowledge question branch -> RAG.
     result = rag.query(message, language=language)
+    updated = result.get("source_last_updated", "")
     return ChatResponse(
         answer=result["answer"],
         source_doc=result.get("source_doc", ""),
         source_page=result.get("source_page", ""),
         source_version=result.get("source_version", ""),
-        source_last_updated=result.get("source_last_updated", ""),
+        source_last_updated=updated,
+        source_date=updated,  # frontend reads `source_date`
         detected_language=language,
         is_feedback=False,
         sentiment=None,

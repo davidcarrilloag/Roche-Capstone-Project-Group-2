@@ -25,10 +25,10 @@ class ChatRequest(BaseModel):
         description="Preferred ISO-639-1 language code (e.g. 'en', 'de'). "
         "If omitted, the backend auto-detects it.",
     )
-    session_id: str = Field(
-        ...,
-        description="Stable per-user session id so conversations persist "
-        "across devices in the lab.",
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Optional per-user session id so conversations persist "
+        "across devices. Defaults to 'web' if omitted.",
     )
 
 
@@ -51,6 +51,10 @@ class ChatResponse(BaseModel):
     source_last_updated: str = Field(
         default="",
         description="Last-updated date of the source document (version awareness).",
+    )
+    source_date: str = Field(
+        default="",
+        description="Alias of source_last_updated (the frontend reads this name).",
     )
     detected_language: str = Field(
         default="en",
@@ -75,19 +79,27 @@ class ChatResponse(BaseModel):
 # Feedback
 # ---------------------------------------------------------------------------
 class FeedbackRequest(BaseModel):
-    """Explicit or detected feedback from a scientist for the IT teams."""
+    """
+    Feedback from a scientist. Supports two shapes:
+    - Chat thumbs:  {message_id, rating}  where rating is +1 (up) or -1 (down).
+    - Explicit:     {session_id, message, sentiment, rating(1-5)}.
+    All fields are optional so both the chat UI and the Dashboard can post.
+    """
 
-    session_id: str = Field(..., description="Originating session id.")
-    message: str = Field(..., description="The raw feedback text.")
-    sentiment: str = Field(
-        ...,
-        description="Sentiment label, e.g. 'frustrated', 'satisfied'.",
+    session_id: Optional[str] = Field(default=None, description="Originating session id.")
+    message: Optional[str] = Field(default=None, description="The raw feedback text.")
+    sentiment: Optional[str] = Field(
+        default=None,
+        description="Sentiment label, e.g. 'frustrated', 'satisfied'. "
+        "Auto-detected if omitted.",
     )
     rating: Optional[int] = Field(
         default=None,
-        ge=1,
-        le=5,
-        description="Optional 1-5 star rating.",
+        description="Star rating (1-5) or chat thumbs (+1 up / -1 down).",
+    )
+    message_id: Optional[str] = Field(
+        default=None,
+        description="Chat message id the thumbs rating applies to.",
     )
 
 
@@ -105,10 +117,10 @@ class FeedbackResponse(BaseModel):
 class IncidentRequest(BaseModel):
     """Payload used to open a ServiceNow incident."""
 
-    session_id: str = Field(..., description="Originating session id.")
+    session_id: Optional[str] = Field(default=None, description="Originating session id.")
     title: str = Field(..., description="Short summary of the problem.")
     description: str = Field(..., description="Detailed description.")
-    category: str = Field(
+    category: Optional[str] = Field(
         default="general",
         description="Incident category, e.g. 'software', 'hardware', 'access'.",
     )

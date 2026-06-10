@@ -24,16 +24,26 @@ async def submit_feedback(
     sentiment: SentimentService = Depends(get_sentiment_service),
     store: FeedbackStore = Depends(get_feedback_store),
 ) -> FeedbackResponse:
-    # If the caller didn't classify sentiment (or sent "auto"), do it now.
+    message = request.message
     tone = request.sentiment
+    rating = request.rating
+
+    # Chat thumbs feedback: {message_id, rating: +1 (up) / -1 (down)}.
+    if request.message_id and message is None:
+        is_down = rating is not None and rating < 0
+        tone = "negative" if is_down else "satisfied"
+        rating = 1 if is_down else 5
+        message = f"Thumbs {'down' if is_down else 'up'} on message {request.message_id}"
+
+    # Otherwise auto-detect sentiment from the text if not provided.
     if not tone or tone == "auto":
-        tone = sentiment.analyze(request.message)
+        tone = sentiment.analyze(message) if message else "neutral"
 
     store.add(
-        session_id=request.session_id,
-        message=request.message,
+        session_id=request.session_id or "web",
+        message=message or "",
         sentiment=tone,
-        rating=request.rating,
+        rating=rating,
     )
     return FeedbackResponse(sentiment=tone)
 

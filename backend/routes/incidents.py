@@ -25,6 +25,6 @@ async def create_incident(
     result = client.create_incident(
         title=request.title,
         description=request.description,
-        category=request.category,
+        category=request.category or "general",
     )
     return IncidentResponse(**result)
