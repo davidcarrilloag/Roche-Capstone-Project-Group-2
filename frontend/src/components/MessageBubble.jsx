@@ -1,4 +1,32 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+
+// Inline-styled renderers so Markdown (bold, bullets, headings) displays nicely
+// without depending on global CSS.
+const MD_COMPONENTS = {
+  p: ({ node, ...props }) => <p style={{ margin: "0 0 8px" }} {...props} />,
+  ul: ({ node, ...props }) => (
+    <ul style={{ margin: "4px 0 8px", paddingLeft: 20 }} {...props} />
+  ),
+  ol: ({ node, ...props }) => (
+    <ol style={{ margin: "4px 0 8px", paddingLeft: 20 }} {...props} />
+  ),
+  li: ({ node, ...props }) => <li style={{ marginBottom: 4 }} {...props} />,
+  strong: ({ node, ...props }) => <strong style={{ fontWeight: 600 }} {...props} />,
+  h1: ({ node, ...props }) => <h3 style={{ fontSize: 14, fontWeight: 600, margin: "8px 0 4px" }} {...props} />,
+  h2: ({ node, ...props }) => <h3 style={{ fontSize: 14, fontWeight: 600, margin: "8px 0 4px" }} {...props} />,
+  h3: ({ node, ...props }) => <h3 style={{ fontSize: 13, fontWeight: 600, margin: "8px 0 4px" }} {...props} />,
+  a: ({ node, ...props }) => (
+    <a style={{ color: "var(--accent, #0066CC)" }} target="_blank" rel="noreferrer" {...props} />
+  ),
+  code: ({ node, ...props }) => (
+    <code style={{ background: "#F3F4F6", padding: "1px 4px", borderRadius: 3, fontSize: 12 }} {...props} />
+  ),
+};
+
+function Markdown({ children }) {
+  return <ReactMarkdown components={MD_COMPONENTS}>{children}</ReactMarkdown>;
+}
 
 const LONG_THRESHOLD = 280;
 
@@ -73,8 +101,8 @@ function MessageContent({ message, expanded, onToggle, long }) {
       : {};
 
   const textEl = (
-    <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, ...clampStyle }}>
-      {text}
+    <div style={{ lineHeight: 1.6, ...clampStyle }}>
+      <Markdown>{text}</Markdown>
     </div>
   );
 
