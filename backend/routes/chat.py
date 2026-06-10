@@ -17,6 +17,7 @@ swapped/mocked independently in tests.
 from __future__ import annotations
 
 import logging
+import re
 
 from fastapi import APIRouter, Depends
 
@@ -30,6 +31,29 @@ from services.translator import TranslatorService, get_translator_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
+
+# Greetings / pleasantries that should get a friendly reply with NO document
+# lookup and NO source citation. Matched as the whole (normalized) message, so
+# real questions that merely start with "hi" are unaffected.
+SMALL_TALK = {
+    "hi", "hello", "hey", "hallo", "hola", "ciao", "bonjour", "yo", "sup",
+    "hi there", "hello there", "good morning", "good afternoon", "good evening",
+    "good night", "thanks", "thank you", "thank you very much", "thx", "ty",
+    "cheers", "gracias", "danke", "merci", "ok", "okay", "cool", "nice",
+    "great", "bye", "goodbye", "how are you", "whats up", "what's up",
+    "who are you", "what can you do",
+}
+
+SMALL_TALK_REPLY = (
+    "Hi! I'm your lab assistant. Ask me about lab procedures, equipment, "
+    "onboarding, ordering, cold storage, or IT support — or describe a problem "
+    "and I can open a ticket for you."
+)
+
+
+def _is_small_talk(text: str) -> bool:
+    norm = re.sub(r"\s+", " ", re.sub(r"[^\w\s]", "", text.lower())).strip()
+    return norm in SMALL_TALK
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -48,6 +72,10 @@ def chat(
 
     # 1. Language: trust the client if provided, else detect.
     language = request.language or translator.detect_language(message)
+
+    # Small talk -> friendly reply, no document lookup, no citation.
+    if _is_small_talk(message):
+        return ChatResponse(answer=SMALL_TALK_REPLY, detected_language=language)
 
     # 2. Intent.
     intent = classifier.classify(message)

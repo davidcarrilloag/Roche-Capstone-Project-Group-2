@@ -15,6 +15,7 @@ RAG pipeline originally authored by Pablo; integrated into the backend.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Optional
 
 from config import Settings, get_settings
@@ -138,15 +139,18 @@ class RAGService:
         context = "\n\n---\n\n".join(d.page_content for d in docs)
 
         answer = self._generate(question, context, lang, source)
-        if low_confidence:
+
+        # If the model couldn't answer from the docs, don't show a citation.
+        grounded = "i don't have that information" not in answer.lower()
+        if low_confidence and grounded:
             answer = LOW_CONF_WARNING.get(lang, LOW_CONF_WARNING["en"]) + "\n\n" + answer
 
         return {
             "answer": answer,
-            "source_doc": source["title"],
-            "source_page": source["doc_id"],
-            "source_version": source["version"],
-            "source_last_updated": source["date"],
+            "source_doc": source["title"] if grounded else "",
+            "source_page": source["doc_id"] if grounded else "",
+            "source_version": source["version"] if grounded else "",
+            "source_last_updated": source["date"] if grounded else "",
             "confidence": self._confidence_label(confidence, low_confidence),
         }
 
@@ -158,12 +162,11 @@ class RAGService:
         system_message = (
             f"You are a helpful assistant for Roche laboratory scientists.\n"
             f"Always respond in {language_name}.\n"
-            "Use ONLY the information provided in the context below to answer the "
-            "question. Do not make up information. If the context does not contain "
-            "enough information to answer, say clearly: \"I don't have that "
-            "information in my documents. Please contact the relevant support team.\"\n\n"
-            "After your answer, always add a source line in this exact format:\n"
-            "[Source: {doc_title} | {doc_version} | {doc_date}]\n\n"
+            "Use ONLY the information in the context below to answer. Do not make "
+            "up information. If the context does not contain the answer, say "
+            "clearly: \"I don't have that information in my documents. Please "
+            "contact the relevant support team.\" Do NOT append a source or "
+            "citation line — the application adds the citation separately.\n\n"
             "Context:\n{context}"
         )
         prompt = ChatPromptTemplate.from_messages(
@@ -171,14 +174,12 @@ class RAGService:
         )
         chain = prompt | self._get_llm() | StrOutputParser()
         try:
-            return chain.invoke(
-                {
-                    "context": context,
-                    "question": question,
-                    "doc_title": source["title"],
-                    "doc_version": source["version"],
-                    "doc_date": source["date"],
-                }
+            answer = chain.invoke(
+                {"context": context, "question": question}
+            ).strip()
+            # Defensive: strip any "[Source: ...]" the model may still append.
+            return re.sub(
+                r"\s*\[source:.*?\]\s*$", "", answer, flags=re.I | re.S
             ).strip()
         except Exception as exc:  # pragma: no cover - network/defensive
             logger.exception("Generation failed: %s", exc)
