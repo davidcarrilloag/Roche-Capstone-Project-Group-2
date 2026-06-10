@@ -30,7 +30,9 @@ class Settings:
         # --- RAG (Gemini via Google AI Studio) ---
         # Document Q&A runs in-process: Gemini embeddings + ChromaDB + Gemini LLM.
         self.google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
-        self.gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+        # flash-lite has a much larger free-tier daily quota than full flash
+        # (which is only ~20 generations/day).
+        self.gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
         self.embedding_model: str = os.getenv(
             "EMBEDDING_MODEL", "models/gemini-embedding-001"
         )

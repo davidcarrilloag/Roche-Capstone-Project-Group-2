@@ -35,6 +35,15 @@ NOT_CONFIGURED = (
     "Google API key. Please contact your local IT support."
 )
 
+RATE_LIMITED = (
+    "The assistant is temporarily busy (free-tier request limit reached). "
+    "Please try again in a little while."
+)
+
+GENERATION_ERROR = (
+    "Sorry, I couldn't generate an answer just now. Please try again."
+)
+
 EMPTY_INDEX = (
     "I don't have any documents in my knowledge base yet. Please ensure the SOPs "
     "have been ingested."
@@ -173,7 +182,10 @@ class RAGService:
             ).strip()
         except Exception as exc:  # pragma: no cover - network/defensive
             logger.exception("Generation failed: %s", exc)
-            return NOT_CONFIGURED
+            msg = str(exc).lower()
+            if any(k in msg for k in ("429", "quota", "exhausted", "rate limit", "resourceexhausted")):
+                return RATE_LIMITED
+            return GENERATION_ERROR
 
 
 _rag_singleton: Optional[RAGService] = None
