@@ -2,30 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import ChatWindow from "../components/ChatWindow.jsx";
 import DocumentViewer from "../components/DocumentViewer.jsx";
+import HexagonMark from "../components/HexagonMark.jsx";
 import { generateTitle } from "../api.js";
 import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check } from "lucide-react";
 
 function genId() {
   return Math.random().toString(36).slice(2, 11);
-}
-
-function RocheLogo({ color = "#FFFFFF" }) {
-  return (
-    <div style={{
-      width: 36,
-      height: 36,
-      borderRadius: "50%",
-      backgroundColor: "rgba(255,255,255,0.15)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-    }}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="26" height="26" aria-hidden="true">
-        <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke={color} strokeWidth="3" />
-      </svg>
-    </div>
-  );
 }
 
 const BASE_NAV_STYLE = {
@@ -309,10 +291,9 @@ function DocumentCard({ doc, onView }) {
   );
 }
 
-function DocumentsPanel({ language }) {
+function DocumentsPanel({ language, openDoc, setOpenDoc }) {
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
-  const [openDoc, setOpenDoc] = useState(null);
 
   const filtered = DOCUMENTS.filter(
     (d) =>
@@ -597,6 +578,8 @@ export default function Chat() {
   const [darkMode, setDarkMode] = useState(
     () => document.documentElement.getAttribute("data-theme") === "dark"
   );
+  // openDoc lifted from DocumentsPanel so ChatWindow can navigate to a specific doc.
+  const [openDoc, setOpenDoc] = useState(null);
 
   function toggleDarkMode() {
     const next = !darkMode;
@@ -683,6 +666,15 @@ export default function Chat() {
     setActiveTab("chat");
   }
 
+  function handleOpenDocument(source) {
+    // Switch to the Documents tab and open the matching document if found by title.
+    const match = DOCUMENTS.find(
+      (d) => d.title.toLowerCase() === (source.title || "").toLowerCase()
+    );
+    setOpenDoc(match || null);
+    setActiveTab("documents");
+  }
+
   function loadSession(sessionId) {
     setActiveSessionId(sessionId);
     setActiveTab("chat");
@@ -728,7 +720,7 @@ export default function Chat() {
         >
           {/* Brand */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 4px", marginBottom: 12, flexShrink: 0 }}>
-            <RocheLogo color="#FFFFFF" />
+            <HexagonMark size={36} stroke="#FFFFFF" strokeWidth={2.5} />
             <span style={{ color: "#FFFFFF", fontSize: 14, fontWeight: 600 }}>Lab Assistant</span>
           </div>
 
@@ -837,7 +829,11 @@ export default function Chat() {
         {/* Content */}
         <div style={{ flex: 1, overflow: "hidden" }}>
           {activeTab === "documents" ? (
-            <DocumentsPanel language={language} />
+            <DocumentsPanel
+              language={language}
+              openDoc={openDoc}
+              setOpenDoc={setOpenDoc}
+            />
           ) : (
             <ChatWindow
               key={activeSessionId}
@@ -845,6 +841,7 @@ export default function Chat() {
               language={language}
               messages={activeMessages}
               setMessages={setActiveMessages}
+              onOpenDocument={handleOpenDocument}
             />
           )}
         </div>

@@ -184,6 +184,34 @@ body {
   color: var(--text-muted);
 }
 
+/* ── ThinkingIndicator — wide hexagon stroke-drawing (no rotation) ───────── */
+/*
+ * Perimeter of the wide hexagon (points="2,16 14,3 50,3 62,16 50,29 14,29"):
+ *   4 diagonal sides × √313 ≈ 17.69  +  2 horizontal sides × 36  ≈ 142.8 SVG units.
+ * dasharray segment (36) + gap (107) = 143 ≈ perimeter → one segment traces ~¼ of the shape.
+ */
+@keyframes hexagon-trace {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -143; }
+}
+
+@keyframes hexagon-pulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 1; }
+}
+
+.thinking-hexagon-path {
+  stroke-dasharray: 36 107;
+  animation: hexagon-trace 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-hexagon-path {
+    stroke-dasharray: none;
+    animation: hexagon-pulse 2s ease-in-out infinite;
+  }
+}
+
 /* Staggered follow-up chip entrance */
 @keyframes chip-fade-up {
   from {

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { sendMessage } from "../api.js";
 import FeedbackButton from "./FeedbackButton.jsx";
+import HexagonMark from "./HexagonMark.jsx";
 import IncidentForm from "./IncidentForm.jsx";
 import MessageBubble from "./MessageBubble.jsx";
+import ThinkingIndicator from "./ThinkingIndicator.jsx";
 import { Paperclip, Mic, ArrowUp, ChevronRight } from "lucide-react";
 
 const WELCOME_SHORTCUTS = [
@@ -156,11 +158,12 @@ function FollowUpChip({ text, delay = 0, onClick }) {
       onMouseLeave={() => setHover(false)}
       className="chip-fade-up"
       style={{
-        padding: "5px 12px",
+        padding: "10px 14px",
+        minHeight: 44,
         fontSize: 12,
-        border: `1px solid ${hover ? "var(--accent)" : "var(--accent-tint-border)"}`,
-        borderRadius: 14,
-        background: "var(--accent-tint)",
+        border: `1px solid ${hover ? "var(--accent)" : "var(--border-color)"}`,
+        borderRadius: 6,
+        background: hover ? "var(--accent-tint)" : "var(--bg-card)",
         color: "var(--accent)",
         cursor: "pointer",
         fontFamily: "inherit",
@@ -175,24 +178,34 @@ function FollowUpChip({ text, delay = 0, onClick }) {
   );
 }
 
-function RocheLogo({ color = "var(--accent)" }) {
+function IncidentBtn({ onClick }) {
+  const [hover, setHover] = useState(false);
   return (
-    <div style={{
-      width: 60,
-      height: 60,
-      borderRadius: "50%",
-      background: "var(--accent-tint)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      boxShadow: "0 0 0 10px var(--accent-tint)",
-    }}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="36" height="36" aria-hidden="true">
-        <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke={color} strokeWidth="2.5" />
-      </svg>
-    </div>
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        padding: "10px 20px",
+        minHeight: 44,
+        fontSize: 13,
+        fontWeight: 500,
+        backgroundColor: hover ? "var(--accent-hover)" : "var(--accent)",
+        color: "#FFFFFF",
+        border: "none",
+        borderRadius: 6,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        flexShrink: 0,
+        transition: "background-color 0.12s",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Create support ticket
+    </button>
   );
 }
+
 
 
 function WelcomeShortcut({ text, onClick }) {
@@ -231,7 +244,7 @@ function WelcomeShortcut({ text, onClick }) {
   );
 }
 
-export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages }) {
+export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages, onOpenDocument }) {
   const [internalMessages, setInternalMessages] = useState([]);
   const messages = propMessages !== undefined ? propMessages : internalMessages;
   const setMessages = propSetMessages !== undefined ? propSetMessages : setInternalMessages;
@@ -250,6 +263,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   const isFirstMount = useRef(true);
   const textareaRef = useRef(null);
   const recognitionRef = useRef(null);
+  const lastQueryRef = useRef("");
 
   const hasUserMessage = messages.some((m) => m.role === "user");
   const inputEmpty = !input.trim();
@@ -302,9 +316,46 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
     ta.style.height = Math.min(ta.scrollHeight, 160) + "px";
   }, [input]);
 
+  function buildAssistantMsg(res) {
+    return {
+      id: genId(),
+      role: "assistant",
+      text: res.answer ?? res.message ?? "No response received.",
+      responseType: res.response_type ?? "plain",
+      confidence: res.confidence ?? 1,
+      source:
+        res.source_doc || res.title
+          ? {
+              title: res.source_doc ?? res.title,
+              version: res.source_version ?? res.version ?? null,
+              date: res.source_date ?? null,
+              url: res.drive_link ?? res.google_drive_link ?? null,
+            }
+          : null,
+      actionLabel: res.action_label ?? null,
+      actionUrl: res.action_url ?? null,
+      timestamp: new Date(),
+    };
+  }
+
+  function buildErrorMsg(err) {
+    return {
+      id: genId(),
+      role: "assistant",
+      isError: true,
+      errorDetail: err ? (err.message || String(err)) : null,
+      text: "",
+      responseType: "plain",
+      confidence: 1,
+      source: null,
+      timestamp: new Date(),
+    };
+  }
+
   async function send(text) {
     const query = (text ?? input).trim();
     if (!query || busy) return;
+    lastQueryRef.current = query;
 
     setMessages((prev) => [
       ...prev,
@@ -315,41 +366,27 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
 
     try {
       const res = await sendMessage(query, language, sessionId);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: genId(),
-          role: "assistant",
-          text: res.answer ?? res.message ?? "No response received.",
-          responseType: res.response_type ?? "plain",
-          confidence: res.confidence ?? 1,
-          source:
-            res.source_doc || res.title
-              ? {
-                  title: res.source_doc ?? res.title,
-                  version: res.source_version ?? res.version ?? null,
-                  date: res.source_date ?? null,
-                  url: res.drive_link ?? res.google_drive_link ?? null,
-                }
-              : null,
-          actionLabel: res.action_label ?? null,
-          actionUrl: res.action_url ?? null,
-          timestamp: new Date(),
-        },
-      ]);
+      setMessages((prev) => [...prev, buildAssistantMsg(res)]);
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: genId(),
-          role: "assistant",
-          text: `Sorry, something went wrong. Please try again.\n\n${err.message}`,
-          responseType: "plain",
-          confidence: 1,
-          source: null,
-          timestamp: new Date(),
-        },
-      ]);
+      console.error("Chat error:", err);
+      setMessages((prev) => [...prev, buildErrorMsg(err)]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function retryLastQuery() {
+    const query = lastQueryRef.current;
+    if (!query || busy) return;
+    // Remove any existing error messages, keep user messages intact
+    setMessages((prev) => prev.filter((m) => !m.isError));
+    setBusy(true);
+    try {
+      const res = await sendMessage(query, language, sessionId);
+      setMessages((prev) => [...prev, buildAssistantMsg(res)]);
+    } catch (err) {
+      console.error("Retry error:", err);
+      setMessages((prev) => [...prev, buildErrorMsg(err)]);
     } finally {
       setBusy(false);
     }
@@ -421,7 +458,17 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
           >
             <div style={{ width: "100%", maxWidth: 460 }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-                <RocheLogo />
+                <div style={{
+                  padding: "14px 22px",
+                  borderRadius: 20,
+                  background: "var(--accent-tint)",
+                  boxShadow: "0 0 0 10px var(--accent-tint)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}>
+                  <HexagonMark size={56} stroke="var(--accent)" strokeWidth={2.5} />
+                </div>
               </div>
               <div
                 style={{
@@ -456,7 +503,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
           /* Message list */
           <div
             style={{
-              maxWidth: 680,
+              maxWidth: 740,
               margin: "0 auto",
               padding: "24px 20px 8px",
               width: "100%",
@@ -493,41 +540,52 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
               const followUps = isLastAssistant ? suggestFollowUps(msg.text) : [];
 
               return (
-                <div key={msg.id} className="msg-fade-up" style={{ marginBottom: 16 }}>
-                  <MessageBubble message={msg} />
-                  {msg.role === "assistant" && (
+                <div key={msg.id} className="msg-fade-up" style={{ marginBottom: 20 }}>
+                  <MessageBubble
+                    message={msg}
+                    onRetry={msg.isError ? retryLastQuery : undefined}
+                    onOpenDocument={onOpenDocument}
+                  />
+                  {msg.role === "assistant" && !msg.isError && (
                     <>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          gap: 8,
-                          marginTop: 6,
-                          paddingLeft: 2,
-                        }}
-                      >
+                      {/* Feedback row */}
+                      <div style={{ marginTop: 8 }}>
                         <FeedbackButton messageId={msg.id} />
-                        {suggestsTicket(msg.text) && (
-                          <button
-                            onClick={() => openIncident(msg, prevUserMsg?.text)}
+                      </div>
+
+                      {/* Incident action row — separated, prominent */}
+                      {suggestsTicket(msg.text) && (
+                        <div
+                          style={{
+                            marginTop: 14,
+                            paddingTop: 14,
+                            borderTop: "1px solid var(--border-subtle)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 16,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span
                             style={{
-                              padding: "4px 10px",
-                              fontSize: 12,
-                              border: "1px solid var(--accent)",
-                              borderRadius: 4,
-                              background: "none",
-                              color: "var(--accent)",
-                              cursor: "pointer",
-                              fontFamily: "inherit",
+                              flex: 1,
+                              fontSize: 13,
+                              color: "var(--text-secondary)",
+                              minWidth: 200,
+                              lineHeight: 1.5,
                             }}
                           >
-                            Create incident
-                          </button>
-                        )}
-                      </div>
+                            Still having trouble? You can open a support ticket.
+                          </span>
+                          <IncidentBtn
+                            onClick={() => openIncident(msg, prevUserMsg?.text)}
+                          />
+                        </div>
+                      )}
+
+                      {/* At most 2 follow-up suggestions, rectangular style */}
                       <SuggestedFollowUps
-                        suggestions={followUps}
+                        suggestions={followUps.slice(0, 2)}
                         onSelect={(text) => send(text)}
                       />
                     </>
@@ -536,24 +594,10 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
               );
             })}
 
-            {/* Typing indicator */}
+            {/* Thinking indicator */}
             {busy && (
               <div className="msg-fade-up" style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    backgroundColor: "var(--bg-card)",
-                    borderLeft: "3px solid var(--accent)",
-                    borderRadius: 8,
-                    padding: "10px 14px",
-                  }}
-                >
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                </div>
+                <ThinkingIndicator />
               </div>
             )}
 
@@ -570,7 +614,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
           backgroundColor: "var(--bg-main)",
         }}
       >
-        <div style={{ maxWidth: 680, margin: "0 auto" }}>
+        <div style={{ maxWidth: 740, margin: "0 auto" }}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -641,14 +685,15 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                 {/* Left: Paperclip attachment ghost button */}
                 <button
                   type="button"
+                  aria-label="Attach file"
                   onMouseEnter={() => setClipHover(true)}
                   onMouseLeave={() => setClipHover(false)}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: 36,
-                    height: 36,
+                    width: 44,
+                    height: 44,
                     borderRadius: 8,
                     border: "none",
                     backgroundColor: "transparent",
@@ -674,8 +719,8 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        width: 36,
-                        height: 36,
+                        width: 44,
+                        height: 44,
                         borderRadius: "50%",
                         border: `1.5px solid ${recording || micHover ? "var(--accent)" : "var(--border-color)"}`,
                         backgroundColor: recording ? "var(--accent)" : "transparent",
@@ -688,29 +733,36 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                       <Mic size={16} strokeWidth={1.5} color={recording ? "#FFFFFF" : micHover ? "var(--accent)" : "var(--text-secondary)"} />
                     </button>
                   )}
-                  {!inputEmpty && (
-                    <button
-                      type="submit"
-                      onMouseEnter={() => setSendHover(true)}
-                      onMouseLeave={() => setSendHover(false)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: 36,
-                        height: 36,
-                        borderRadius: "50%",
-                        border: "none",
-                        backgroundColor: sendHover ? "var(--accent-hover)" : "var(--accent)",
-                        cursor: "pointer",
-                        padding: 0,
-                        flexShrink: 0,
-                        transition: "background-color 0.15s",
-                      }}
-                    >
-                      <ArrowUp size={16} strokeWidth={2} color="white" />
-                    </button>
-                  )}
+                  {/* Send button — always visible for touchscreen users */}
+                  <button
+                    type="submit"
+                    disabled={inputEmpty || busy}
+                    aria-label="Send message"
+                    onMouseEnter={() => !inputEmpty && !busy && setSendHover(true)}
+                    onMouseLeave={() => setSendHover(false)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+                      border: "none",
+                      backgroundColor:
+                        inputEmpty || busy
+                          ? "var(--border-color)"
+                          : sendHover
+                          ? "var(--accent-hover)"
+                          : "var(--accent)",
+                      cursor: inputEmpty || busy ? "default" : "pointer",
+                      padding: 0,
+                      flexShrink: 0,
+                      transition: "background-color 0.15s",
+                      opacity: inputEmpty ? 0.5 : 1,
+                    }}
+                  >
+                    <ArrowUp size={16} strokeWidth={2} color="white" />
+                  </button>
                 </div>
               </div>
             </div>

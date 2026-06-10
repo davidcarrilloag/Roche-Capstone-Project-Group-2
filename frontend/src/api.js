@@ -19,10 +19,12 @@ export function sendMessage(query, language = "en", sessionId = "") {
   });
 }
 
-export function submitFeedback(messageId, rating) {
+export function submitFeedback(messageId, rating, comment) {
+  const body = { message_id: messageId, rating };
+  if (comment) body.comment = comment;
   return request("/feedback", {
     method: "POST",
-    body: JSON.stringify({ message_id: messageId, rating }),
+    body: JSON.stringify(body),
   });
 }
 
