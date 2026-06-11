@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import ChatWindow from "../components/ChatWindow.jsx";
 import DocumentViewer from "../components/DocumentViewer.jsx";
-import HexagonMark from "../components/HexagonMark.jsx";
+import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { generateTitle } from "../api.js";
 import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check } from "lucide-react";
 
@@ -720,7 +720,7 @@ export default function Chat() {
         >
           {/* Brand */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 4px", marginBottom: 12, flexShrink: 0 }}>
-            <HexagonMark size={36} stroke="#FFFFFF" strokeWidth={2.5} />
+            <img src={rocheLogoWhite} alt="Roche" style={{ height: 22, width: "auto", display: "block", flexShrink: 0 }} />
             <span style={{ color: "#FFFFFF", fontSize: 14, fontWeight: 600 }}>Lab Assistant</span>
           </div>
 
@@ -842,6 +842,7 @@ export default function Chat() {
               messages={activeMessages}
               setMessages={setActiveMessages}
               onOpenDocument={handleOpenDocument}
+              darkMode={darkMode}
             />
           )}
         </div>

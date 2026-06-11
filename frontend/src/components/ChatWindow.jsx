@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { sendMessage } from "../api.js";
 import FeedbackButton from "./FeedbackButton.jsx";
-import HexagonMark from "./HexagonMark.jsx";
 import IncidentForm from "./IncidentForm.jsx";
 import MessageBubble from "./MessageBubble.jsx";
 import ThinkingIndicator from "./ThinkingIndicator.jsx";
+import rocheLogoBlue from "../assets/Roche_Logo_Blue.png";
+import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { Paperclip, Mic, ArrowUp, ChevronRight } from "lucide-react";
 
 const WELCOME_SHORTCUTS = [
@@ -164,10 +165,10 @@ function FollowUpChip({ text, delay = 0, onClick }) {
         border: `1px solid ${hover ? "var(--accent)" : "var(--border-color)"}`,
         borderRadius: 6,
         background: hover ? "var(--accent-tint)" : "var(--bg-card)",
-        color: "var(--accent)",
+        color: hover ? "var(--accent)" : "var(--text-primary)",
         cursor: "pointer",
         fontFamily: "inherit",
-        transition: "border-color 0.12s, background 0.12s",
+        transition: "border-color 0.12s, background 0.12s, color 0.12s",
         textAlign: "left",
         lineHeight: 1.4,
         animationDelay: `${delay}ms`,
@@ -190,10 +191,10 @@ function IncidentBtn({ onClick }) {
         minHeight: 44,
         fontSize: 13,
         fontWeight: 500,
-        backgroundColor: hover ? "var(--accent-hover)" : "var(--accent)",
-        color: "#FFFFFF",
-        border: "none",
-        borderRadius: 6,
+        backgroundColor: hover ? "var(--accent-tint)" : "transparent",
+        color: "var(--accent)",
+        border: "1.5px solid var(--accent)",
+        borderRadius: 22,
         cursor: "pointer",
         fontFamily: "inherit",
         flexShrink: 0,
@@ -244,7 +245,7 @@ function WelcomeShortcut({ text, onClick }) {
   );
 }
 
-export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages, onOpenDocument }) {
+export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages, onOpenDocument, darkMode = false }) {
   const [internalMessages, setInternalMessages] = useState([]);
   const messages = propMessages !== undefined ? propMessages : internalMessages;
   const setMessages = propSetMessages !== undefined ? propSetMessages : setInternalMessages;
@@ -467,7 +468,11 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                   alignItems: "center",
                   justifyContent: "center",
                 }}>
-                  <HexagonMark size={56} stroke="var(--accent)" strokeWidth={2.5} />
+                  <img
+                    src={darkMode ? rocheLogoWhite : rocheLogoBlue}
+                    alt="Roche"
+                    style={{ height: 44, width: "auto", display: "block" }}
+                  />
                 </div>
               </div>
               <div
@@ -570,7 +575,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                             style={{
                               flex: 1,
                               fontSize: 13,
-                              color: "var(--text-secondary)",
+                              color: "var(--text-primary)",
                               minWidth: 200,
                               lineHeight: 1.5,
                             }}

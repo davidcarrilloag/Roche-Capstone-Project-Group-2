@@ -49,12 +49,14 @@
   --bg-input: #1E293B;
   --border-color: #334155;
   --border-subtle: #334155;
-  --border-focus: #3B82F6;
+  --border-focus: #60A5FA;
   --text-primary: #F1F5F9;
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
-  --accent-tint: rgba(59,130,246,0.12);
-  --accent-tint-border: rgba(59,130,246,0.25);
+  --accent: #60A5FA;
+  --accent-hover: #93C5FD;
+  --accent-tint: rgba(96,165,250,0.12);
+  --accent-tint-border: rgba(96,165,250,0.3);
   --bubble-bot-bg: #1E293B;
   --bubble-bot-text: #F1F5F9;
   --shadow-card: 0 1px 4px rgba(0,0,0,0.3);
