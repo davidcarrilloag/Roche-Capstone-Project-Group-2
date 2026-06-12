@@ -19,31 +19,25 @@ are now persisted instead of being console-logged.
 - `reason: string` — one of the reason chips: `"Wrong information"`,
   `"Source not relevant"`, `"Answer too vague"`, `"Wrong language"`.
 - `comment: string` — free text typed by the scientist.
+- `language: string` — ISO code (en/de/fr/it). Auto-detected from the text
+  when omitted.
+- `topic: string` — the SOP the rated answer was based on (taken from the
+  message's `source.title`), enabling per-topic analytics.
 
-Every stored entry now also keeps `reason`, `comment` and `message_id`
-(`null` when absent), so the analytics dashboard and the weekly FAQ tracker
-can aggregate downvote reasons per SOP topic.
+Every stored entry now also keeps `reason`, `comment`, `message_id`,
+`language` and `topic` (`null` when absent), so the analytics dashboard and
+the weekly FAQ tracker can aggregate downvote reasons per SOP topic.
 
 ## Frontend change needed (FeedbackButton.jsx — Claudia)
 
-`api.js` already sends `comment`; it only needs to also send `reason`:
-
-```js
-// api.js
-export function submitFeedback(messageId, rating, comment, reason) {
-  const body = { message_id: messageId, rating };
-  if (comment) body.comment = comment;
-  if (reason) body.reason = reason;
-  return request("/feedback", { method: "POST", body: JSON.stringify(body) });
-}
-```
-
-Then in `FeedbackButton.jsx`, replace the two `console.log` calls:
+`api.js` and the thumbs call already send `topic`; the two pending
+`console.log` replacements should use the same signature
+`submitFeedback(messageId, rating, comment, reason, topic)`:
 
 ```js
 async function submitReason(reason) {
   try {
-    await submitFeedback(messageId, null, null, reason);
+    await submitFeedback(messageId, null, null, reason, topic);
   } catch (e) {
     console.error("Feedback error:", e);
   }
@@ -56,7 +50,7 @@ async function submitComment() {
   const comment = commentText.trim();
   if (!comment) return;
   try {
-    await submitFeedback(messageId, null, comment, null);
+    await submitFeedback(messageId, null, comment, null, topic);
   } catch (e) {
     console.error("Feedback error:", e);
   }
@@ -65,9 +59,6 @@ async function submitComment() {
   triggerThanks();
 }
 ```
-
-Note: pass `rating = null` in the follow-up so the backend records it as
-negative *detail* without double-counting the rating.
 
 ## Backward compatibility
 

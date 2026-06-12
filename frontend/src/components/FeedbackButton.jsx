@@ -9,7 +9,7 @@ const REASON_CHIPS = [
   "Wrong language",
 ];
 
-export default function FeedbackButton({ messageId }) {
+export default function FeedbackButton({ messageId, topic }) {
   const [selected, setSelected] = useState(null); // "up" | "down" | null
   const [busy, setBusy] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
@@ -29,8 +29,9 @@ export default function FeedbackButton({ messageId }) {
     if (selected !== null || busy) return;
     setBusy(true);
     try {
-      // Submit the same payload as before: messageId + rating (1 or -1). No extra fields.
-      await submitFeedback(messageId, kind === "up" ? 1 : -1);
+      // Submit the same payload as before: messageId + rating (1 or -1),
+      // plus the source SOP as topic when known (for per-topic analytics).
+      await submitFeedback(messageId, kind === "up" ? 1 : -1, null, null, topic);
     } catch (e) {
       console.error("Feedback error:", e);
     } finally {
