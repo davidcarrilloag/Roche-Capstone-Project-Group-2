@@ -33,13 +33,25 @@ class FeedbackStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
     def add(self, session_id: str, message: str, sentiment: str,
-            rating: Optional[int] = None) -> dict:
+            rating: Optional[int] = None, reason: Optional[str] = None,
+            comment: Optional[str] = None,
+            message_id: Optional[str] = None,
+            topic: Optional[str] = None,
+            language: Optional[str] = None,
+            timestamp: Optional[str] = None,
+            seed: bool = False) -> dict:
         entry = {
             "session_id": session_id,
             "message": message,
             "sentiment": sentiment,
             "rating": rating,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "reason": reason,
+            "comment": comment,
+            "message_id": message_id,
+            "topic": topic,
+            "language": language,
+            "seed": seed,
+            "timestamp": timestamp or datetime.now(timezone.utc).isoformat(),
         }
         with self._lock:
             with self._path.open("a", encoding="utf-8") as fh:
@@ -54,17 +66,86 @@ class FeedbackStore:
             with self._path.open("r", encoding="utf-8") as fh:
                 return [json.loads(line) for line in fh if line.strip()]
 
+    NEGATIVE_SENTIMENTS = {"negative", "frustrated", "confused"}
+
     def analytics(self) -> dict:
-        """Aggregated view for the Dashboard page."""
+        """Aggregated view for the Dashboard page.
+
+        Keeps the original keys (total, by_sentiment, average_rating, recent)
+        and adds richer aggregates for the analytics dashboard: weekly rating
+        trend, per-topic counts with flagged ratios, language and downvote
+        reason breakdowns. All additive — older consumers keep working.
+        """
         entries = self.all()
         sentiments = Counter(e["sentiment"] for e in entries)
         ratings = [e["rating"] for e in entries if e.get("rating") is not None]
         avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None
+
+        # --- Weekly rating trend (ISO week buckets, chronological) ---
+        weeks: dict[str, list[dict]] = {}
+        timestamps: list[str] = []
+        for e in entries:
+            ts = e.get("timestamp")
+            if not ts:
+                continue
+            try:
+                dt = datetime.fromisoformat(ts)
+            except ValueError:
+                continue
+            timestamps.append(ts)
+            weeks.setdefault(dt.strftime("%G-W%V"), []).append(e)
+        weekly = []
+        for key in sorted(weeks):
+            wk = weeks[key]
+            wk_ratings = [x["rating"] for x in wk if x.get("rating") is not None]
+            weekly.append({
+                "week": key,
+                "avg_rating": round(sum(wk_ratings) / len(wk_ratings), 2)
+                if wk_ratings else None,
+                "count": len(wk),
+            })
+
+        # --- Per-topic counts + flagged (negative/confused/frustrated or <=2) ---
+        topics: dict[str, dict] = {}
+        for e in entries:
+            t = e.get("topic")
+            if not t:
+                continue
+            d = topics.setdefault(t, {"topic": t, "count": 0, "flagged": 0,
+                                      "example": None})
+            d["count"] += 1
+            low_rating = e.get("rating") is not None and e["rating"] <= 2
+            if e.get("sentiment") in self.NEGATIVE_SENTIMENTS or low_rating:
+                d["flagged"] += 1
+            if d["example"] is None and e.get("message"):
+                d["example"] = e["message"]
+        topic_list = sorted(topics.values(), key=lambda d: -d["count"])
+        confusion = sorted(
+            (d for d in topic_list if d["count"] >= 3 and d["flagged"] > 0),
+            key=lambda d: -(d["flagged"] / d["count"]),
+        )
+
+        # --- Languages, downvote reasons, attention counter ---
+        by_language = Counter(e["language"] for e in entries if e.get("language"))
+        by_reason = Counter(e["reason"] for e in entries if e.get("reason"))
+        needs_attention = sum(
+            1 for e in entries if e.get("sentiment") in self.NEGATIVE_SENTIMENTS
+        )
+
         return {
             "total": len(entries),
             "by_sentiment": dict(sentiments),
             "average_rating": avg_rating,
             "recent": entries[-10:][::-1],
+            "weekly": weekly,
+            "topics": topic_list[:8],
+            "confusion": confusion[:8],
+            "by_language": dict(by_language),
+            "by_reason": dict(by_reason),
+            "needs_attention": needs_attention,
+            "first_date": min(timestamps) if timestamps else None,
+            "last_date": max(timestamps) if timestamps else None,
+            "demo": any(e.get("seed") for e in entries),
         }
 
 

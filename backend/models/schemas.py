@@ -101,6 +101,20 @@ class FeedbackRequest(BaseModel):
         default=None,
         description="Chat message id the thumbs rating applies to.",
     )
+    reason: Optional[str] = Field(
+        default=None,
+        description="Structured downvote reason chip, e.g. 'Wrong information', "
+        "'Source not relevant', 'Answer too vague', 'Wrong language'.",
+    )
+    comment: Optional[str] = Field(
+        default=None,
+        description="Free-text comment the scientist typed after a downvote.",
+    )
+    language: Optional[str] = Field(
+        default=None,
+        description="ISO-639-1 language of the feedback (en/de/fr/it). "
+        "Auto-detected from the text if omitted.",
+    )
 
 
 class FeedbackResponse(BaseModel):
