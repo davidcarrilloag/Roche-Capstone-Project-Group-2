@@ -555,7 +555,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                     <>
                       {/* Feedback row */}
                       <div style={{ marginTop: 8 }}>
-                        <FeedbackButton messageId={msg.id} />
+                        <FeedbackButton messageId={msg.id} topic={msg.source?.title} />
                       </div>
 
                       {/* Incident action row — separated, prominent */}

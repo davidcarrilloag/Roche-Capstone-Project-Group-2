@@ -115,6 +115,11 @@ class FeedbackRequest(BaseModel):
         description="ISO-639-1 language of the feedback (en/de/fr/it). "
         "Auto-detected from the text if omitted.",
     )
+    topic: Optional[str] = Field(
+        default=None,
+        description="SOP/document the rated answer was based on, e.g. "
+        "'SOP-003 Material Return'. Sent by the chat UI when known.",
+    )
 
 
 class FeedbackResponse(BaseModel):

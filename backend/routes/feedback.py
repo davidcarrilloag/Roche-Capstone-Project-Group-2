@@ -70,6 +70,7 @@ async def submit_feedback(
         comment=request.comment,
         message_id=request.message_id,
         language=language,
+        topic=request.topic,
     )
     return FeedbackResponse(sentiment=tone)
 

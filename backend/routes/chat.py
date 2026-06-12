@@ -89,6 +89,7 @@ def chat(
             session_id=session_id,
             message=message,
             sentiment=tone,
+            language=language if language in {"en", "de", "fr", "it"} else None,
         )
         ack = (
             "Thank you for your feedback — it has been logged and shared with "
