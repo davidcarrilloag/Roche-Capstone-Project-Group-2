@@ -55,17 +55,19 @@ class TranslatorService:
             logger.warning("Language detection failed, defaulting to 'en': %s", exc)
             return "en"
 
-    def translate(self, text: str, target_language: str) -> str:
+    def translate(
+        self, text: str, target_language: str, source_language: Optional[str] = None
+    ) -> str:
         """
         Translate `text` into `target_language` (ISO code).
 
-        Only calls the API when the detected source language differs from the
-        target, to save tokens and latency.
+        Pass `source_language` when the caller already knows it to skip a
+        redundant detection. Only calls the API when source != target.
         """
         if not text or not text.strip():
             return text
 
-        source = self.detect_language(text)
+        source = source_language or self.detect_language(text)
         if source == target_language:
             return text
 

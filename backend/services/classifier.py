@@ -53,6 +53,12 @@ class IntentClassifier:
         if not text or not text.strip():
             return "question"
 
+        # Fast path: clear cases never need an LLM round trip.
+        quick = self._quick(text)
+        if quick is not None:
+            return quick
+
+        # Only ambiguous messages reach the LLM (and fall back to the heuristic).
         llm = self._get_llm()
         if llm is None:
             return self._heuristic(text)
@@ -66,6 +72,25 @@ class IntentClassifier:
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("Intent LLM call failed, using heuristic: %s", exc)
             return self._heuristic(text)
+
+    @staticmethod
+    def _quick(text: str) -> Optional[str]:
+        """Confident classification for clear cases; None if ambiguous."""
+        t = text.lower().strip()
+        if t.endswith("?"):
+            return "question"
+        if t.split(" ", 1)[0] in {
+            "how", "what", "where", "when", "who", "which", "can",
+            "is", "are", "do", "does", "why", "should", "could",
+        }:
+            return "question"
+        strong_feedback = (
+            "confusing", "frustrat", "useless", "annoying", "hate",
+            "too slow", "doesn't make sense", "not helpful", "this is terrible",
+        )
+        if any(m in t for m in strong_feedback):
+            return "feedback"
+        return None
 
     @staticmethod
     def _heuristic(text: str) -> str:

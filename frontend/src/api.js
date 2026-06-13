@@ -12,10 +12,30 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-export function sendMessage(query, language = "en", sessionId = "") {
+// Stable per-browser id so anonymous users don't all collapse into "web"
+// (which would pollute the dashboard analytics).
+function persistentSessionId() {
+  try {
+    let id = localStorage.getItem("sa_session_id");
+    if (!id) {
+      id = "sess-" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      localStorage.setItem("sa_session_id", id);
+    }
+    return id;
+  } catch {
+    return "web";
+  }
+}
+
+export function sendMessage(query, language = "en", sessionId = "", history = []) {
   return request("/chat", {
     method: "POST",
-    body: JSON.stringify({ message: query, language, session_id: sessionId }),
+    body: JSON.stringify({
+      message: query,
+      language,
+      session_id: sessionId || persistentSessionId(),
+      history,
+    }),
   });
 }
 

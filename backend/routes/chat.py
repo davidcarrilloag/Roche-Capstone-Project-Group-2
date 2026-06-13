@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import re
+import uuid
 
 from fastapi import APIRouter, Depends
 
@@ -44,11 +45,12 @@ SMALL_TALK = {
     "who are you", "what can you do",
 }
 
-SMALL_TALK_REPLY = (
-    "Hi! I'm your lab assistant. Ask me about lab procedures, equipment, "
-    "onboarding, ordering, cold storage, or IT support — or describe a problem "
-    "and I can open a ticket for you."
-)
+SMALL_TALK_REPLIES = {
+    "en": "Hi! I'm your lab assistant. Ask me about lab procedures, equipment, onboarding, ordering, cold storage, or IT support — or describe a problem and I can open a ticket for you.",
+    "de": "Hallo! Ich bin Ihr Laborassistent. Fragen Sie mich zu Laborabläufen, Geräten, Einarbeitung, Bestellungen, Kühllagerung oder IT-Support — oder beschreiben Sie ein Problem und ich erstelle ein Ticket.",
+    "fr": "Bonjour ! Je suis votre assistant de laboratoire. Posez-moi des questions sur les procédures, les équipements, l'intégration, les commandes, le stockage au froid ou le support informatique — ou décrivez un problème et j'ouvrirai un ticket.",
+    "it": "Ciao! Sono il tuo assistente di laboratorio. Chiedimi di procedure, attrezzature, onboarding, ordini, conservazione a freddo o supporto IT — oppure descrivi un problema e aprirò un ticket.",
+}
 
 
 def _is_small_talk(text: str) -> bool:
@@ -73,9 +75,14 @@ def chat(
     # 1. Language: trust the client if provided, else detect.
     language = request.language or translator.detect_language(message)
 
-    # Small talk -> friendly reply, no document lookup, no citation.
+    # Small talk -> friendly reply (localized), no document lookup, no citation.
     if _is_small_talk(message):
-        return ChatResponse(answer=SMALL_TALK_REPLY, detected_language=language)
+        reply = SMALL_TALK_REPLIES.get(language, SMALL_TALK_REPLIES["en"])
+        return ChatResponse(
+            answer=reply,
+            message_id=uuid.uuid4().hex,
+            detected_language=language,
+        )
 
     # 2. Intent.
     intent = classifier.classify(message)
@@ -95,9 +102,10 @@ def chat(
             "Thank you for your feedback — it has been logged and shared with "
             "the IT team."
         )
-        ack = translator.translate(ack, language)
+        ack = translator.translate(ack, language, source_language="en")
         return ChatResponse(
             answer=ack,
+            message_id=uuid.uuid4().hex,
             source_doc="",
             source_page="",
             detected_language=language,
@@ -106,11 +114,12 @@ def chat(
             confidence=None,
         )
 
-    # 3b. Knowledge question branch -> RAG.
-    result = rag.query(message, language=language)
+    # 3b. Knowledge question branch -> RAG (with conversation history).
+    result = rag.query(message, language=language, history=request.history)
     updated = result.get("source_last_updated", "")
     return ChatResponse(
         answer=result["answer"],
+        message_id=uuid.uuid4().hex,
         source_doc=result.get("source_doc", ""),
         source_page=result.get("source_page", ""),
         source_version=result.get("source_version", ""),
@@ -120,6 +129,7 @@ def chat(
         is_feedback=False,
         sentiment=None,
         confidence=result.get("confidence"),
+        confidence_warning=result.get("confidence_warning", ""),
     )
 
 

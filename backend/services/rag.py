@@ -2,12 +2,12 @@
 RAG query pipeline (in-process) — Gemini + ChromaDB.
 
 For a scientist's question: accept/detect the language, retrieve the top-k SOP
-chunks from ChromaDB, build a grounded language-aware prompt, and ask Gemini for
-an answer with a source citation (title, version, date).
+chunks from ChromaDB, build a grounded language-aware prompt (with recent
+conversation history for follow-ups), and ask Gemini for an answer plus a
+source citation (title, version, date).
 
-Exposes the backend's standard `RAGService.query(question, language) -> dict`
-interface, so the chat route is provider-agnostic. Degrades gracefully when no
-Google API key is configured.
+Exposes `RAGService.query(question, language, history) -> dict`. Degrades
+gracefully when no Google API key is configured.
 
 RAG pipeline originally authored by Pablo; integrated into the backend.
 """
@@ -16,13 +16,17 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Optional
+from typing import List, Optional
 
 from config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
 TOP_K = 5
+# Average the top-N relevance scores for a more robust confidence than top-1.
+CONFIDENCE_TOP_N = 3
+# How many prior turns to feed the model for follow-up context.
+HISTORY_TURNS = 6
 
 SUPPORTED_LANGUAGES = {
     "en": "English",
@@ -31,32 +35,66 @@ SUPPORTED_LANGUAGES = {
     "it": "Italian",
 }
 
-NOT_CONFIGURED = (
-    "Document Q&A is not available yet: the knowledge service is missing its "
-    "Google API key. Please contact your local IT support."
-)
+# Sentinel the model returns when the context can't answer (language-agnostic).
+NO_ANSWER = "NO_ANSWER"
 
-RATE_LIMITED = (
-    "The assistant is temporarily busy (free-tier request limit reached). "
-    "Please try again in a little while."
-)
 
-GENERATION_ERROR = (
-    "Sorry, I couldn't generate an answer just now. Please try again."
-)
+def _msg(table: dict, lang: str) -> str:
+    """Pick a localized message, falling back to English."""
+    return table.get(lang, table["en"])
 
-EMPTY_INDEX = (
-    "I don't have any documents in my knowledge base yet. Please ensure the SOPs "
-    "have been ingested."
-)
 
-# Low-confidence warning prepended to weak answers, per language.
-LOW_CONF_WARNING = {
-    "en": "Note: I'm not very confident in this answer — please verify with the source document.",
-    "de": "Hinweis: Ich bin nicht sehr sicher bei dieser Antwort — bitte prüfen Sie das Quelldokument.",
-    "fr": "Note: Je ne suis pas très confiant dans cette réponse — veuillez vérifier le document source.",
-    "it": "Nota: Non sono molto sicuro di questa risposta — si prega di verificare il documento sorgente.",
+NOT_CONFIGURED = {
+    "en": "Document Q&A is not available yet: the knowledge service is missing its Google API key. Please contact your local IT support.",
+    "de": "Die Dokumentensuche ist noch nicht verfügbar: Dem Wissensdienst fehlt der Google-API-Schlüssel. Bitte wenden Sie sich an Ihren lokalen IT-Support.",
+    "fr": "La recherche documentaire n'est pas encore disponible : la clé API Google est manquante. Veuillez contacter votre support informatique local.",
+    "it": "La ricerca documentale non è ancora disponibile: manca la chiave API di Google. Contatta il supporto IT locale.",
 }
+
+RATE_LIMITED = {
+    "en": "The assistant is temporarily busy (free-tier request limit reached). Please try again in a little while.",
+    "de": "Der Assistent ist vorübergehend ausgelastet (Anfragelimit erreicht). Bitte versuchen Sie es in Kürze erneut.",
+    "fr": "L'assistant est temporairement occupé (limite de requêtes atteinte). Veuillez réessayer dans un instant.",
+    "it": "L'assistente è temporaneamente occupato (limite di richieste raggiunto). Riprova tra poco.",
+}
+
+GENERATION_ERROR = {
+    "en": "Sorry, I couldn't generate an answer just now. Please try again.",
+    "de": "Entschuldigung, ich konnte gerade keine Antwort generieren. Bitte versuchen Sie es erneut.",
+    "fr": "Désolé, je n'ai pas pu générer de réponse. Veuillez réessayer.",
+    "it": "Spiacente, non sono riuscito a generare una risposta. Riprova.",
+}
+
+EMPTY_INDEX = {
+    "en": "I don't have any documents in my knowledge base yet. Please ensure the SOPs have been ingested.",
+    "de": "Meine Wissensdatenbank enthält noch keine Dokumente. Bitte stellen Sie sicher, dass die SOPs importiert wurden.",
+    "fr": "Ma base de connaissances ne contient encore aucun document. Veuillez vérifier que les SOP ont été importées.",
+    "it": "La mia base di conoscenza non contiene ancora documenti. Verifica che le SOP siano state importate.",
+}
+
+NOT_FOUND = {
+    "en": "I don't have that information in my documents. Please contact the relevant support team.",
+    "de": "Diese Information habe ich nicht in meinen Dokumenten. Bitte wenden Sie sich an das zuständige Support-Team.",
+    "fr": "Je n'ai pas cette information dans mes documents. Veuillez contacter l'équipe de support concernée.",
+    "it": "Non ho questa informazione nei miei documenti. Contatta il team di supporto competente.",
+}
+
+LOW_CONF_WARNING = {
+    "en": "I'm not very confident in this answer — please verify with the source document.",
+    "de": "Ich bin bei dieser Antwort nicht sehr sicher — bitte prüfen Sie das Quelldokument.",
+    "fr": "Je ne suis pas très confiant dans cette réponse — veuillez vérifier le document source.",
+    "it": "Non sono molto sicuro di questa risposta — verifica con il documento sorgente.",
+}
+
+# Markers used internally to flag generation failures (mapped to localized text).
+_RATE_LIMITED_MARK = "__RATE_LIMITED__"
+_GEN_ERROR_MARK = "__GEN_ERROR__"
+
+# Connector words that signal a follow-up needing prior context for retrieval.
+_FOLLOWUP_PREFIXES = (
+    "and ", "also ", "what about", "how about", "and for", "and in", "what if",
+    "und ", "auch ", "et ", "e ", "y ", "también", "auch", "anche",
+)
 
 
 def _empty_result(answer: str) -> dict:
@@ -67,6 +105,7 @@ def _empty_result(answer: str) -> dict:
         "source_version": "",
         "source_last_updated": "",
         "confidence": "low",
+        "confidence_warning": "",
     }
 
 
@@ -107,26 +146,49 @@ class RAGService:
             return "medium"
         return "low"
 
-    # ------------------------------------------------------------------
-    def query(self, question: str, language: str = "en") -> dict:
-        """Answer a question from the SOP corpus with a version-aware citation."""
-        if not self.settings.has_google:
-            return _empty_result(NOT_CONFIGURED)
+    @staticmethod
+    def _retrieval_query(question: str, history: Optional[List[dict]]) -> str:
+        """
+        For short / follow-up questions, prepend the previous user turn so
+        retrieval has enough context (e.g. "what about step 2?").
+        """
+        q = question.strip()
+        ql = q.lower()
+        is_followup = len(q.split()) <= 5 or ql.startswith(_FOLLOWUP_PREFIXES)
+        if is_followup and history:
+            for turn in reversed(history):
+                if turn.get("role") == "user" and str(turn.get("text", "")).strip():
+                    return f"{str(turn['text']).strip()} {q}"
+        return q
 
+    # ------------------------------------------------------------------
+    def query(
+        self,
+        question: str,
+        language: str = "en",
+        history: Optional[List[dict]] = None,
+    ) -> dict:
+        """Answer a question from the SOP corpus with a version-aware citation."""
         lang = language if language in SUPPORTED_LANGUAGES else "en"
 
+        if not self.settings.has_google:
+            return _empty_result(_msg(NOT_CONFIGURED, lang))
+
+        retrieval_query = self._retrieval_query(question, history)
         try:
             store = self._get_store()
-            results = store.similarity_search_with_relevance_scores(question, k=TOP_K)
+            results = store.similarity_search_with_relevance_scores(retrieval_query, k=TOP_K)
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("Retrieval failed: %s", exc)
-            return _empty_result(EMPTY_INDEX)
+            return _empty_result(_msg(EMPTY_INDEX, lang))
 
         if not results:
-            return _empty_result(EMPTY_INDEX)
+            return _empty_result(_msg(EMPTY_INDEX, lang))
 
         docs, scores = zip(*results)
-        confidence = float(scores[0])
+        # Average the top-N scores for a more robust confidence than top-1.
+        top_scores = [float(s) for s in scores[:CONFIDENCE_TOP_N]]
+        confidence = sum(top_scores) / len(top_scores)
         low_confidence = confidence < self.settings.confidence_threshold
 
         top = docs[0].metadata
@@ -138,58 +200,73 @@ class RAGService:
         }
         context = "\n\n---\n\n".join(d.page_content for d in docs)
 
-        answer = self._generate(question, context, lang, source)
+        raw = self._generate(question, context, lang, source, history)
+        if raw == _RATE_LIMITED_MARK:
+            return _empty_result(_msg(RATE_LIMITED, lang))
+        if raw == _GEN_ERROR_MARK:
+            return _empty_result(_msg(GENERATION_ERROR, lang))
 
-        # If the model couldn't answer from the docs, don't show a citation.
-        grounded = "i don't have that information" not in answer.lower()
-        if low_confidence and grounded:
-            answer = LOW_CONF_WARNING.get(lang, LOW_CONF_WARNING["en"]) + "\n\n" + answer
+        # Language-agnostic grounding: the model returns NO_ANSWER if the
+        # context didn't cover the question.
+        grounded = NO_ANSWER not in raw.upper()
+        if not grounded:
+            return _empty_result(_msg(NOT_FOUND, lang))
 
+        warning = _msg(LOW_CONF_WARNING, lang) if low_confidence else ""
         return {
-            "answer": answer,
-            "source_doc": source["title"] if grounded else "",
-            "source_page": source["doc_id"] if grounded else "",
-            "source_version": source["version"] if grounded else "",
-            "source_last_updated": source["date"] if grounded else "",
+            "answer": raw,
+            "source_doc": source["title"],
+            "source_page": source["doc_id"],
+            "source_version": source["version"],
+            "source_last_updated": source["date"],
             "confidence": self._confidence_label(confidence, low_confidence),
+            "confidence_warning": warning,
         }
 
-    def _generate(self, question: str, context: str, language: str, source: dict) -> str:
-        from langchain_core.output_parsers import StrOutputParser
-        from langchain_core.prompts import ChatPromptTemplate
+    def _generate(
+        self,
+        question: str,
+        context: str,
+        language: str,
+        source: dict,
+        history: Optional[List[dict]] = None,
+    ) -> str:
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
         language_name = SUPPORTED_LANGUAGES.get(language, "English")
-        system_message = (
+        system = (
             f"You are a helpful assistant for Roche laboratory scientists.\n"
             f"Always respond in {language_name}.\n"
-            "Use ONLY the information in the context below to answer. Do not make "
-            "up information. If the context does not contain the answer, say "
-            "clearly: \"I don't have that information in my documents. Please "
-            "contact the relevant support team.\" Do NOT append a source or "
-            "citation line — the application adds the citation separately.\n"
-            "Format your answers using markdown: use **bold** for key terms or "
-            "important values, and bullet points (- item) or numbered lists for "
-            "steps or multiple items. Keep answers concise and well-structured.\n\n"
-            "Context:\n{context}"
+            "Answer the user's latest question using ONLY the information in the "
+            "context below. You may use the earlier conversation to resolve "
+            "follow-ups (e.g. 'what about step 2?'). Do not make up information. "
+            f"If the context does not contain the answer, reply with exactly: {NO_ANSWER}\n"
+            "Format answers in markdown: **bold** for key terms/values, and bullet "
+            "points (- item) or numbered lists for steps. Keep it concise. Do NOT "
+            "append a source or citation line — the application adds it separately.\n\n"
+            f"Context:\n{context}"
         )
-        prompt = ChatPromptTemplate.from_messages(
-            [("system", system_message), ("human", "{question}")]
-        )
-        chain = prompt | self._get_llm() | StrOutputParser()
+        messages = [SystemMessage(content=system)]
+        for turn in (history or [])[-HISTORY_TURNS:]:
+            text = str(turn.get("text", "")).strip()
+            if not text:
+                continue
+            if turn.get("role") == "assistant":
+                messages.append(AIMessage(content=text))
+            else:
+                messages.append(HumanMessage(content=text))
+        messages.append(HumanMessage(content=question))
+
         try:
-            answer = chain.invoke(
-                {"context": context, "question": question}
-            ).strip()
+            answer = self._get_llm().invoke(messages).content.strip()
             # Defensive: strip any "[Source: ...]" the model may still append.
-            return re.sub(
-                r"\s*\[source:.*?\]\s*$", "", answer, flags=re.I | re.S
-            ).strip()
+            return re.sub(r"\s*\[source:.*?\]\s*$", "", answer, flags=re.I | re.S).strip()
         except Exception as exc:  # pragma: no cover - network/defensive
             logger.exception("Generation failed: %s", exc)
-            msg = str(exc).lower()
-            if any(k in msg for k in ("429", "quota", "exhausted", "rate limit", "resourceexhausted")):
-                return RATE_LIMITED
-            return GENERATION_ERROR
+            m = str(exc).lower()
+            if any(k in m for k in ("429", "quota", "exhausted", "rate limit", "resourceexhausted")):
+                return _RATE_LIMITED_MARK
+            return _GEN_ERROR_MARK
 
 
 _rag_singleton: Optional[RAGService] = None

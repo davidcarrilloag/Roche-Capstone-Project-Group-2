@@ -53,6 +53,21 @@ function genId() {
   return Math.random().toString(36).slice(2, 11);
 }
 
+// Map prior chat turns to the compact {role, text} history the backend uses
+// for follow-up context.
+function buildHistory(messages) {
+  return messages
+    .filter(
+      (m) =>
+        (m.role === "user" || m.role === "assistant") &&
+        !m.isError &&
+        !m.isSystemDivider &&
+        m.text
+    )
+    .map((m) => ({ role: m.role, text: String(m.text) }))
+    .slice(-8);
+}
+
 function suggestsTicket(text) {
   const t = text.toLowerCase();
   return (
@@ -439,7 +454,8 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
     setBusy(true);
 
     try {
-      const res = await sendMessage(query, language, sessionId);
+      const history = buildHistory(messages);
+      const res = await sendMessage(query, language, sessionId, history);
       setMessages((prev) => [...prev, buildAssistantMsg(res)]);
     } catch (err) {
       console.error("Chat error:", err);
@@ -456,7 +472,8 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
     setMessages((prev) => prev.filter((m) => !m.isError));
     setBusy(true);
     try {
-      const res = await sendMessage(query, language, sessionId);
+      const history = buildHistory(messages.filter((m) => !m.isError));
+      const res = await sendMessage(query, language, sessionId, history);
       setMessages((prev) => [...prev, buildAssistantMsg(res)]);
     } catch (err) {
       console.error("Retry error:", err);

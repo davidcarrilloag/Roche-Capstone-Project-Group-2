@@ -19,7 +19,11 @@ from pydantic import BaseModel, Field
 class ChatRequest(BaseModel):
     """A single user turn sent to the /chat endpoint."""
 
-    message: str = Field(..., description="The scientist's message / question.")
+    message: str = Field(
+        ...,
+        max_length=4000,
+        description="The scientist's message / question.",
+    )
     language: Optional[str] = Field(
         default=None,
         description="Preferred ISO-639-1 language code (e.g. 'en', 'de'). "
@@ -30,12 +34,22 @@ class ChatRequest(BaseModel):
         description="Optional per-user session id so conversations persist "
         "across devices. Defaults to 'web' if omitted.",
     )
+    history: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Recent conversation turns [{role: 'user'|'assistant', "
+        "text: str}, ...] for follow-up context. Most recent last.",
+    )
 
 
 class ChatResponse(BaseModel):
     """The assistant's answer plus provenance and analysis metadata."""
 
     answer: str = Field(..., description="Natural-language answer for the user.")
+    message_id: str = Field(
+        default="",
+        description="Unique id for this answer; the frontend echoes it back "
+        "with thumbs feedback to correlate per-message ratings.",
+    )
     source_doc: str = Field(
         default="",
         description="Filename of the document used to answer (empty if none).",
@@ -72,6 +86,11 @@ class ChatResponse(BaseModel):
     confidence: Optional[str] = Field(
         default=None,
         description="Retrieval confidence: 'high' | 'medium' | 'low'.",
+    )
+    confidence_warning: str = Field(
+        default="",
+        description="A localized low-confidence note (empty when confident); "
+        "the frontend can render it as a distinct banner.",
     )
 
 
