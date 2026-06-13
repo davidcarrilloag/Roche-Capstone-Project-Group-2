@@ -369,7 +369,7 @@ function WelcomeShortcut({ text, onClick }) {
   );
 }
 
-export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages, onOpenDocument, darkMode = false }) {
+export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages, onOpenDocument, darkMode = false, voiceEnabled = true, voiceAutoSend = true }) {
   const [internalMessages, setInternalMessages] = useState([]);
   const messages = propMessages !== undefined ? propMessages : internalMessages;
   const setMessages = propSetMessages !== undefined ? propSetMessages : setInternalMessages;
@@ -560,7 +560,8 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
       if (spoken) {
         const full = (base + spoken).trim();
         setInput(full);
-        send(full); // auto-send once you stop speaking
+        // Auto-send once you stop speaking, unless the user prefers to edit first.
+        if (voiceAutoSend) send(full);
       }
     };
 
@@ -888,7 +889,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
 
                 {/* Right: Mic + Send */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {speechSupported && (
+                  {speechSupported && voiceEnabled && (
                     <button
                       type="button"
                       title={recording ? "Stop recording" : "Voice input"}

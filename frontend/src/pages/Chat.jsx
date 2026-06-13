@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import ChatWindow from "../components/ChatWindow.jsx";
 import DocumentViewer from "../components/DocumentViewer.jsx";
+import SettingsPanel from "../components/SettingsPanel.jsx";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { generateTitle } from "../api.js";
 import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check } from "lucide-react";
@@ -580,14 +581,81 @@ export default function Chat() {
   const [darkMode, setDarkMode] = useState(
     () => document.documentElement.getAttribute("data-theme") === "dark"
   );
+  const [themeMode, setThemeMode] = useState(() => {
+    try { return localStorage.getItem("themeMode") || (darkMode ? "dark" : "light"); }
+    catch { return "light"; }
+  });
   // openDoc lifted from DocumentsPanel so ChatWindow can navigate to a specific doc.
   const [openDoc, setOpenDoc] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Voice + ticket preferences (persisted in this browser).
+  const [voiceEnabled, setVoiceEnabledState] = useState(() => {
+    try { return localStorage.getItem("voiceEnabled") !== "false"; } catch { return true; }
+  });
+  const [voiceAutoSend, setVoiceAutoSendState] = useState(() => {
+    try { return localStorage.getItem("voiceAutoSend") !== "false"; } catch { return true; }
+  });
+  const [ticketCaller, setTicketCallerState] = useState(() => {
+    try { return localStorage.getItem("ticketCaller") || ""; } catch { return ""; }
+  });
+
+  function persist(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) {}
+  }
+
+  // Resolve a theme mode (light/dark/system) to an effective light/dark and apply it.
+  function applyTheme(mode) {
+    const effective =
+      mode === "system"
+        ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+        : mode;
+    document.documentElement.setAttribute("data-theme", effective);
+    setDarkMode(effective === "dark");
+    setThemeMode(mode);
+    persist("themeMode", mode);
+    persist("theme", effective);
+  }
+
+  // Follow the OS theme live while in "system" mode.
+  useEffect(() => {
+    if (themeMode !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e) => {
+      document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light");
+      setDarkMode(e.matches);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [themeMode]);
 
   function toggleDarkMode() {
-    const next = !darkMode;
-    setDarkMode(next);
-    document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
-    try { localStorage.setItem("theme", next ? "dark" : "light"); } catch (e) {}
+    applyTheme(darkMode ? "light" : "dark");
+  }
+
+  function setVoiceEnabled(v) {
+    setVoiceEnabledState(v);
+    persist("voiceEnabled", v ? "true" : "false");
+  }
+  function setVoiceAutoSend(v) {
+    setVoiceAutoSendState(v);
+    persist("voiceAutoSend", v ? "true" : "false");
+  }
+  function setTicketCaller(v) {
+    setTicketCallerState(v);
+    persist("ticketCaller", v);
+  }
+  function setDefaultLanguage(code) {
+    setLanguage(code);
+    persist("defaultLanguage", code);
+  }
+
+  function clearChatData() {
+    setSessions([]);
+    titledSessions.current = new Set();
+    setActiveSessionId(genId());
+    setActiveTab("chat");
+    try { localStorage.removeItem("sa_session_id"); } catch (e) {}
   }
 
   // Session state — messages are stored here and passed down to ChatWindow
@@ -596,6 +664,13 @@ export default function Chat() {
   const titledSessions = useRef(new Set());
 
   useEffect(() => {
+    // A saved default wins over browser auto-detection.
+    let saved = "";
+    try { saved = localStorage.getItem("defaultLanguage") || ""; } catch (e) {}
+    if (saved) {
+      setLanguage(saved);
+      return;
+    }
     const browserLang = navigator.language || "";
     if (browserLang.toLowerCase().startsWith("de") && !toastDismissed) {
       setLanguage("de");
@@ -786,7 +861,11 @@ export default function Chat() {
           <div style={{ flexShrink: 0 }}>
             <div style={{ height: 1, backgroundColor: "rgba(255,255,255,0.1)", margin: "8px 0" }} />
             <LanguageSelector language={language} onSelectLanguage={setLanguage} />
-            <SidebarBottomBtn icon={<Settings size={15} strokeWidth={1.5} />} label="Settings" />
+            <SidebarBottomBtn
+              icon={<Settings size={15} strokeWidth={1.5} />}
+              label="Settings"
+              onClick={() => setSettingsOpen(true)}
+            />
           </div>
         </div>
       </aside>
@@ -849,10 +928,29 @@ export default function Chat() {
               setMessages={setActiveMessages}
               onOpenDocument={handleOpenDocument}
               darkMode={darkMode}
+              voiceEnabled={voiceEnabled}
+              voiceAutoSend={voiceAutoSend}
             />
           )}
         </div>
       </main>
+
+      {settingsOpen && (
+        <SettingsPanel
+          onClose={() => setSettingsOpen(false)}
+          themeMode={themeMode}
+          onSetTheme={applyTheme}
+          language={language}
+          onSetLanguage={setDefaultLanguage}
+          voiceEnabled={voiceEnabled}
+          onSetVoiceEnabled={setVoiceEnabled}
+          voiceAutoSend={voiceAutoSend}
+          onSetVoiceAutoSend={setVoiceAutoSend}
+          ticketCaller={ticketCaller}
+          onSetTicketCaller={setTicketCaller}
+          onClearData={clearChatData}
+        />
+      )}
     </div>
   );
 }

@@ -28,7 +28,9 @@ export default function IncidentForm({
   const [category, setCategory] = useState("");
   const [urgency, setUrgency] = useState("");
   const [impact, setImpact] = useState(null); // from triage; sent with the ticket
-  const [caller, setCaller] = useState("");
+  const [caller, setCaller] = useState(() => {
+    try { return localStorage.getItem("ticketCaller") || ""; } catch { return ""; }
+  });
   const [suggestion, setSuggestion] = useState(null); // { priority_label }
   const [triaging, setTriaging] = useState(false);
   const [result, setResult] = useState(null);
