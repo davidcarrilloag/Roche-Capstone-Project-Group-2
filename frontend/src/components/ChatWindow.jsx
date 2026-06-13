@@ -522,6 +522,8 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
     }
   }
 
+  const SPEECH_LANG = { en: "en-US", de: "de-DE", fr: "fr-FR", it: "it-IT" };
+
   function toggleRecording() {
     if (recording) {
       recognitionRef.current?.stop();
@@ -529,18 +531,42 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
       return;
     }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
     const recognition = new SR();
+    // Recognise in the user's selected language (EN/DE/FR/IT).
+    recognition.lang = SPEECH_LANG[language] || "en-US";
     recognition.continuous = false;
     recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
     recognition.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      setInput((prev) => prev + (prev ? " " : "") + transcript);
+      const transcript = (e.results[0][0]?.transcript || "").trim();
+      setRecording(false);
+      // Auto-send the spoken question so it behaves like a voice assistant.
+      if (transcript) send(transcript);
     };
     recognition.onend = () => setRecording(false);
-    recognition.onerror = () => setRecording(false);
+    recognition.onerror = (e) => {
+      setRecording(false);
+      if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: genId(),
+            role: "system",
+            text: "🎤 Microphone access is blocked. Allow it in your browser to use voice input.",
+            isSystemDivider: true,
+            timestamp: new Date(),
+          },
+        ]);
+      }
+    };
     recognitionRef.current = recognition;
-    recognition.start();
-    setRecording(true);
+    try {
+      recognition.start();
+      setRecording(true);
+    } catch {
+      setRecording(false);
+    }
   }
 
   function openIncident(botMsg, userText) {
