@@ -215,10 +215,6 @@ export default function FeedbackButton({ messageId }) {
         </div>
       )}
 
-      {/* Caption — always visible under the thumbs row */}
-      <span style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-        Your feedback improves answers for all scientists.
-      </span>
     </div>
   );
 }

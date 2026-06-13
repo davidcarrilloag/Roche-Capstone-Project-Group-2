@@ -81,62 +81,58 @@ function SourceItem({ source, onOpenDocument }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        padding: "6px 0",
-        borderRadius: 6,
+        gap: 7,
+        padding: "3px 4px",
+        borderRadius: 5,
         backgroundColor: hover && clickable ? "var(--accent-tint)" : "transparent",
         cursor: clickable ? "pointer" : "default",
         transition: "background-color 0.12s",
-        minHeight: 44,
       }}
     >
       <FileText
-        size={14}
+        size={12}
         strokeWidth={1.5}
-        color="var(--text-secondary)"
+        color="var(--text-muted)"
         style={{ flexShrink: 0 }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <span
           style={{
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: 500,
-            color: "var(--text-primary)",
+            color: "var(--text-secondary)",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
         >
           {source.title}
-        </div>
-        {(source.version || source.date) && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-            {source.version && (
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: "var(--text-muted)",
-                  backgroundColor: "var(--border-subtle)",
-                  padding: "1px 6px",
-                  borderRadius: 3,
-                  letterSpacing: "0.02em",
-                }}
-              >
-                {source.version}
-              </span>
-            )}
-            {source.date && (
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                {source.date}
-              </span>
-            )}
-          </div>
+        </span>
+        {source.version && (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 500,
+              color: "var(--text-muted)",
+              backgroundColor: "var(--border-subtle)",
+              padding: "0px 5px",
+              borderRadius: 3,
+              letterSpacing: "0.02em",
+              flexShrink: 0,
+            }}
+          >
+            {source.version}
+          </span>
+        )}
+        {source.date && (
+          <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0 }}>
+            {source.date}
+          </span>
         )}
       </div>
       {clickable && (
         <ChevronRight
-          size={14}
+          size={12}
           strokeWidth={1.5}
           color={hover ? "var(--accent)" : "var(--text-muted)"}
           style={{ flexShrink: 0, transition: "color 0.12s" }}
@@ -155,19 +151,19 @@ function SourceList({ sources, onOpenDocument }) {
   return (
     <div
       style={{
-        marginTop: 12,
-        paddingTop: 10,
+        marginTop: 10,
+        paddingTop: 8,
         borderTop: "1px solid var(--border-color)",
       }}
     >
       <div
         style={{
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 600,
           color: "var(--text-muted)",
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          marginBottom: 2,
+          marginBottom: 1,
         }}
       >
         {valid.length === 1 ? "SOURCE" : "SOURCES"}
@@ -328,7 +324,7 @@ export default function MessageBubble({ message, onRetry, onOpenDocument }) {
             borderRadius: 10,
             padding: "10px 16px",
             fontSize: 13,
-            maxWidth: "72%",
+            maxWidth: "60%",
             lineHeight: 1.5,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",

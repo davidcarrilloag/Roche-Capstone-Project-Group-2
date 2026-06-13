@@ -779,8 +779,8 @@ export default function Chat() {
           {/* Bottom nav */}
           <div style={{ flexShrink: 0 }}>
             <div style={{ height: 1, backgroundColor: "rgba(255,255,255,0.1)", margin: "8px 0" }} />
-            <SidebarBottomBtn icon={<Settings size={15} strokeWidth={1.5} />} label="Settings" />
             <LanguageSelector language={language} onSelectLanguage={setLanguage} />
+            <SidebarBottomBtn icon={<Settings size={15} strokeWidth={1.5} />} label="Settings" />
           </div>
         </div>
       </aside>

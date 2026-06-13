@@ -8,12 +8,34 @@ import rocheLogoBlue from "../assets/Roche_Logo_Blue.png";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { Paperclip, Mic, ArrowUp, ChevronRight } from "lucide-react";
 
-const WELCOME_SHORTCUTS = [
+const WELCOME_SHORTCUTS_EN = [
   "What trainings do I need as a new employee?",
   "How do I order lab consumables?",
   "Waste disposal procedure for chemical waste",
   "How do I file an IT support ticket?",
 ];
+
+const WELCOME_SHORTCUTS_DE = [
+  "Welche Schulungen benötige ich als neuer Mitarbeiter?",
+  "Wie bestelle ich Laborverbrauchsmaterialien?",
+  "Entsorgungsverfahren für Chemikalienabfälle",
+  "Wie reiche ich ein IT-Support-Ticket ein?",
+];
+
+const UI_TEXT = {
+  en: {
+    labAssistant: "Lab Assistant",
+    subtitle: "Ask anything about lab procedures, equipment, onboarding, or support.",
+    stillTrouble: "Still having trouble? You can open a support ticket.",
+    createTicket: "Create support ticket",
+  },
+  de: {
+    labAssistant: "Labor-Assistent",
+    subtitle: "Stellen Sie Fragen zu Laborabläufen, Geräten, Onboarding oder Support.",
+    stillTrouble: "Haben Sie noch Probleme? Sie können ein Support-Ticket erstellen.",
+    createTicket: "Support-Ticket erstellen",
+  },
+};
 
 const PLACEHOLDERS_EN = [
   "Try: how do I return expired reagents?",
@@ -49,77 +71,128 @@ function suggestsTicket(text) {
 const FOLLOW_UP_RULES = [
   {
     keywords: ["waste", "disposal", "chemical", "hazardous"],
+    keywords_de: ["abfall", "entsorgung", "chemisch", "gefährlich", "chemikalien"],
     suggestions: [
       "What containers are required for chemical waste?",
       "Who do I contact for waste pickup?",
       "Are there separate bins for biological waste?",
     ],
+    suggestions_de: [
+      "Welche Behälter werden für Chemikalienabfälle benötigt?",
+      "Wen kontaktiere ich für die Abfallabholung?",
+      "Gibt es separate Behälter für biologischen Abfall?",
+    ],
   },
   {
     keywords: ["consumables", "order", "ordering", "procurement", "purchase"],
+    keywords_de: ["verbrauchsmaterial", "bestell", "beschaffung", "einkauf", "lieferung"],
     suggestions: [
       "How long does delivery take?",
       "What is the budget approval process?",
       "Can I order from external suppliers?",
     ],
+    suggestions_de: [
+      "Wie lange dauert die Lieferung?",
+      "Wie läuft der Budgetgenehmigungsprozess ab?",
+      "Kann ich bei externen Lieferanten bestellen?",
+    ],
   },
   {
     keywords: ["equipment", "maintenance", "broken", "repair", "device", "instrument"],
+    keywords_de: ["gerät", "wartung", "defekt", "reparatur", "instrument", "kalibrierung", "ausrüstung"],
     suggestions: [
       "Who is responsible for equipment maintenance?",
       "How do I report a broken device?",
       "What is the calibration schedule?",
     ],
+    suggestions_de: [
+      "Wer ist für die Gerätewartung zuständig?",
+      "Wie melde ich ein defektes Gerät?",
+      "Wie ist der Kalibrierungsplan?",
+    ],
   },
   {
     keywords: ["onboarding", "new employee", "training", "orientation"],
+    keywords_de: ["einarbeitung", "neuer mitarbeiter", "schulung", "einführung", "ausbildung"],
     suggestions: [
       "What safety trainings are mandatory?",
       "How do I get lab access?",
       "Who is my assigned onboarding buddy?",
     ],
+    suggestions_de: [
+      "Welche Sicherheitsschulungen sind Pflicht?",
+      "Wie erhalte ich Laborzugang?",
+      "Wer ist mein zugewiesener Onboarding-Buddy?",
+    ],
   },
   {
     keywords: ["storage", "cold", "freezer", "refrigerat", "temperature"],
+    keywords_de: ["lagerung", "kühl", "gefrier", "kühlschrank", "temperatur", "kühllagerung"],
     suggestions: [
       "What are the temperature requirements?",
       "How do I log cold storage incidents?",
       "What happens if temperature goes out of range?",
     ],
+    suggestions_de: [
+      "Welche Temperaturanforderungen gelten?",
+      "Wie melde ich Vorfälle in der Kühllagerung?",
+      "Was passiert, wenn die Temperatur außerhalb des Bereichs liegt?",
+    ],
   },
   {
     keywords: ["ticket", "incident", "servicenow", "support", "it support"],
+    keywords_de: ["ticket", "vorfall", "incident", "support", "servicenow"],
     suggestions: [
       "What information is needed to open a ticket?",
       "How do I check my ticket status?",
       "What is the typical response time?",
     ],
+    suggestions_de: [
+      "Welche Informationen werden für ein Ticket benötigt?",
+      "Wie kann ich meinen Ticketstatus prüfen?",
+      "Wie lange ist die typische Reaktionszeit?",
+    ],
   },
   {
     keywords: ["safety", "ppe", "protective", "gloves", "goggles", "emergency"],
+    keywords_de: ["sicherheit", "psa", "schutzausrüstung", "handschuhe", "schutzbrille", "notfall"],
     suggestions: [
       "Where is the nearest safety shower?",
       "What PPE is required in my lab area?",
       "How do I report a safety incident?",
     ],
+    suggestions_de: [
+      "Wo befindet sich die nächste Sicherheitsdusche?",
+      "Welche PSA ist in meinem Laborbereich erforderlich?",
+      "Wie melde ich einen Sicherheitsvorfall?",
+    ],
   },
   {
     keywords: ["access", "badge", "door", "permission", "login", "password"],
+    keywords_de: ["zugang", "zugriff", "badge", "tür", "berechtigung", "anmeldung", "passwort", "ausgesperrt"],
     suggestions: [
       "How do I request additional access?",
       "Who approves access requests?",
       "What do I do if I'm locked out?",
     ],
+    suggestions_de: [
+      "Wie beantrage ich zusätzlichen Zugang?",
+      "Wer genehmigt Zugriffsanfragen?",
+      "Was tue ich, wenn ich ausgesperrt bin?",
+    ],
   },
 ];
 
-function suggestFollowUps(text) {
+function suggestFollowUps(text, language = "en") {
   const t = text.toLowerCase();
   const seen = new Set();
   const results = [];
+  const isDE = language === "de";
   for (const rule of FOLLOW_UP_RULES) {
-    if (rule.keywords.some((kw) => t.includes(kw))) {
-      for (const s of rule.suggestions) {
+    const keywords = isDE ? [...rule.keywords, ...(rule.keywords_de || [])] : rule.keywords;
+    const suggestions = isDE ? (rule.suggestions_de || rule.suggestions) : rule.suggestions;
+    if (keywords.some((kw) => t.includes(kw))) {
+      for (const s of suggestions) {
         if (!seen.has(s)) {
           seen.add(s);
           results.push(s);
@@ -179,7 +252,7 @@ function FollowUpChip({ text, delay = 0, onClick }) {
   );
 }
 
-function IncidentBtn({ onClick }) {
+function IncidentBtn({ onClick, label }) {
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -202,7 +275,7 @@ function IncidentBtn({ onClick }) {
         whiteSpace: "nowrap",
       }}
     >
-      Create support ticket
+      {label}
     </button>
   );
 }
@@ -484,7 +557,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                   marginBottom: 8,
                 }}
               >
-                Lab Assistant
+                {(UI_TEXT[language] || UI_TEXT.en).labAssistant}
               </div>
               <div
                 style={{
@@ -495,10 +568,10 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                   lineHeight: 1.5,
                 }}
               >
-                Ask anything about lab procedures, equipment, onboarding, or support.
+                {(UI_TEXT[language] || UI_TEXT.en).subtitle}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {WELCOME_SHORTCUTS.map((text) => (
+                {(language === "de" ? WELCOME_SHORTCUTS_DE : WELCOME_SHORTCUTS_EN).map((text) => (
                   <WelcomeShortcut key={text} text={text} onClick={() => send(text)} />
                 ))}
               </div>
@@ -542,7 +615,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                 !busy &&
                 messages.slice(idx + 1).every((m) => m.isSystemDivider);
 
-              const followUps = isLastAssistant ? suggestFollowUps(msg.text) : [];
+              const followUps = isLastAssistant ? suggestFollowUps(msg.text, language) : [];
 
               return (
                 <div key={msg.id} className="msg-fade-up" style={{ marginBottom: 20 }}>
@@ -580,9 +653,10 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                               lineHeight: 1.5,
                             }}
                           >
-                            Still having trouble? You can open a support ticket.
+                            {(UI_TEXT[language] || UI_TEXT.en).stillTrouble}
                           </span>
                           <IncidentBtn
+                            label={(UI_TEXT[language] || UI_TEXT.en).createTicket}
                             onClick={() => openIncident(msg, prevUserMsg?.text)}
                           />
                         </div>

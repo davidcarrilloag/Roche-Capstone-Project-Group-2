@@ -166,7 +166,10 @@ class RAGService:
             "up information. If the context does not contain the answer, say "
             "clearly: \"I don't have that information in my documents. Please "
             "contact the relevant support team.\" Do NOT append a source or "
-            "citation line — the application adds the citation separately.\n\n"
+            "citation line — the application adds the citation separately.\n"
+            "Format your answers using markdown: use **bold** for key terms or "
+            "important values, and bullet points (- item) or numbered lists for "
+            "steps or multiple items. Keep answers concise and well-structured.\n\n"
             "Context:\n{context}"
         )
         prompt = ChatPromptTemplate.from_messages(
