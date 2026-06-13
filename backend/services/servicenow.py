@@ -122,8 +122,13 @@ class ServiceNowClient:
             r = httpx.get(
                 f"{self.settings.servicenow_instance_url}/api/now/table/sys_user",
                 params={
-                    "sysparm_query": f"email={caller}^ORname={caller}",
-                    "sysparm_fields": "sys_id",
+                    # Partial match so a first name / partial email resolves to a
+                    # real user (active users first). Picks the first match.
+                    "sysparm_query": (
+                        f"active=true^nameLIKE{caller}^ORemailLIKE{caller}"
+                        f"^ORfirst_nameLIKE{caller}^ORlast_nameLIKE{caller}"
+                    ),
+                    "sysparm_fields": "sys_id,name",
                     "sysparm_limit": 1,
                 },
                 auth=(self.settings.servicenow_username, self.settings.servicenow_password),
