@@ -128,6 +128,36 @@ class ServiceNowClient:
         self._user_cache[caller] = sys_id
         return sys_id
 
+    def _api_user_sys_id(self):
+        """sys_id of the authenticated API user — fallback caller so the field
+        is never empty when the reporter isn't a ServiceNow user."""
+        key = f"__api__:{self.settings.servicenow_username}"
+        if key in self._user_cache:
+            return self._user_cache[key]
+        sys_id = None
+        try:
+            import httpx
+
+            r = httpx.get(
+                f"{self.settings.servicenow_instance_url}/api/now/table/sys_user",
+                params={
+                    "sysparm_query": f"user_name={self.settings.servicenow_username}",
+                    "sysparm_fields": "sys_id",
+                    "sysparm_limit": 1,
+                },
+                auth=(self.settings.servicenow_username, self.settings.servicenow_password),
+                headers={"Accept": "application/json"},
+                timeout=15.0,
+            )
+            r.raise_for_status()
+            results = r.json().get("result", [])
+            if results:
+                sys_id = results[0].get("sys_id")
+        except Exception as exc:  # pragma: no cover - network
+            logger.warning("API user lookup failed: %s", exc)
+        self._user_cache[key] = sys_id
+        return sys_id
+
     def _create_real(
         self, title, description, category, urgency, impact, caller, contact_type
     ) -> dict:
@@ -148,11 +178,14 @@ class ServiceNowClient:
 
         if caller:
             caller_sys_id = self._resolve_caller(caller)
+            if not caller_sys_id:
+                # Not a ServiceNow user (common in the dev instance): keep the
+                # entered value in the description and fall back to the API user
+                # so the Caller field isn't left empty.
+                payload["description"] = f"{description}\n\nReported by: {caller}"
+                caller_sys_id = self._api_user_sys_id()
             if caller_sys_id:
                 payload["caller_id"] = caller_sys_id
-            else:
-                # Keep the reporter on record even if they're not a SN user.
-                payload["description"] = f"{description}\n\nReported by: {caller}"
 
         try:
             resp = httpx.post(

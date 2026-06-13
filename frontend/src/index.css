@@ -260,10 +260,15 @@ body {
   border-color: var(--border-color);
 }
 [data-theme="dark"] .incident-surface input,
-[data-theme="dark"] .incident-surface textarea {
+[data-theme="dark"] .incident-surface textarea,
+[data-theme="dark"] .incident-surface select {
   background-color: var(--bg-main);
   color: var(--text-primary);
   border-color: var(--border-color);
+}
+[data-theme="dark"] .incident-surface select option {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
 }
 [data-theme="dark"] .incident-surface input::placeholder,
 [data-theme="dark"] .incident-surface textarea::placeholder {
