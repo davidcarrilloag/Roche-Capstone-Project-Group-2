@@ -2,27 +2,73 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { FileText, AlertCircle, ChevronRight } from "lucide-react";
 
-// Inline-styled renderers — numbered lists render as proper <ol> with good spacing.
+// Inline-styled renderers for readable, scannable answers. listStyleType is set
+// explicitly so bullet dots / numbers always show regardless of CSS resets.
 const MD_COMPONENTS = {
-  p: ({ node, ...props }) => <p style={{ margin: "0 0 10px" }} {...props} />,
+  p: ({ node, ...props }) => (
+    <p style={{ margin: "0 0 10px", lineHeight: 1.6 }} {...props} />
+  ),
   ul: ({ node, ...props }) => (
-    <ul style={{ margin: "6px 0 10px", paddingLeft: 22, lineHeight: 1.7 }} {...props} />
+    <ul
+      style={{
+        margin: "6px 0 12px",
+        paddingLeft: 20,
+        listStyleType: "disc",
+        listStylePosition: "outside",
+      }}
+      {...props}
+    />
   ),
   ol: ({ node, ...props }) => (
-    <ol style={{ margin: "6px 0 10px", paddingLeft: 22, lineHeight: 1.7 }} {...props} />
+    <ol
+      style={{
+        margin: "6px 0 12px",
+        paddingLeft: 22,
+        listStyleType: "decimal",
+        listStylePosition: "outside",
+      }}
+      {...props}
+    />
   ),
   li: ({ node, ...props }) => (
-    <li style={{ marginBottom: 6, lineHeight: 1.6 }} {...props} />
+    <li style={{ margin: "0 0 6px", paddingLeft: 4, lineHeight: 1.55 }} {...props} />
   ),
-  strong: ({ node, ...props }) => <strong style={{ fontWeight: 600 }} {...props} />,
+  strong: ({ node, ...props }) => (
+    <strong style={{ fontWeight: 600, color: "var(--text-primary)" }} {...props} />
+  ),
+  em: ({ node, ...props }) => <em style={{ fontStyle: "italic" }} {...props} />,
+  blockquote: ({ node, ...props }) => (
+    <blockquote
+      style={{
+        margin: "10px 0",
+        padding: "8px 12px",
+        borderLeft: "3px solid var(--accent, #0066CC)",
+        background: "var(--accent-tint, #EBF3FB)",
+        borderRadius: "0 6px 6px 0",
+        color: "var(--text-secondary)",
+        fontSize: 13,
+      }}
+      {...props}
+    />
+  ),
+  hr: ({ node, ...props }) => (
+    <hr
+      style={{
+        border: "none",
+        borderTop: "1px solid var(--border-color, #E0E0E0)",
+        margin: "12px 0",
+      }}
+      {...props}
+    />
+  ),
   h1: ({ node, ...props }) => (
-    <h3 style={{ fontSize: 14, fontWeight: 600, margin: "10px 0 6px" }} {...props} />
+    <h3 style={{ fontSize: 14, fontWeight: 600, margin: "12px 0 6px" }} {...props} />
   ),
   h2: ({ node, ...props }) => (
-    <h3 style={{ fontSize: 14, fontWeight: 600, margin: "10px 0 6px" }} {...props} />
+    <h3 style={{ fontSize: 14, fontWeight: 600, margin: "12px 0 6px" }} {...props} />
   ),
   h3: ({ node, ...props }) => (
-    <h3 style={{ fontSize: 13, fontWeight: 600, margin: "8px 0 4px" }} {...props} />
+    <h3 style={{ fontSize: 13, fontWeight: 600, margin: "10px 0 4px" }} {...props} />
   ),
   a: ({ node, ...props }) => (
     <a
@@ -35,10 +81,11 @@ const MD_COMPONENTS = {
   code: ({ node, ...props }) => (
     <code
       style={{
-        background: "#F3F4F6",
-        padding: "1px 4px",
-        borderRadius: 3,
+        background: "var(--border-subtle, #F3F4F6)",
+        padding: "1px 5px",
+        borderRadius: 4,
         fontSize: 12,
+        fontFamily: "ui-monospace, monospace",
       }}
       {...props}
     />
