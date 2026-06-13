@@ -50,8 +50,17 @@ export function submitFeedback(messageId, rating, comment, reason, topic) {
   });
 }
 
-export function createIncident(description, title = "Support Request") {
+export function createIncident(description, title = "Support Request", opts = {}) {
+  // opts may include: category, urgency (1-3), impact (1-3), caller.
   return request("/incidents", {
+    method: "POST",
+    body: JSON.stringify({ description, title, ...opts }),
+  });
+}
+
+// Ask the backend to classify a problem into category + severity (priority).
+export function triageIncident(description, title = "") {
+  return request("/incidents/triage", {
     method: "POST",
     body: JSON.stringify({ description, title }),
   });

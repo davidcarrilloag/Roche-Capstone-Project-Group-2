@@ -162,6 +162,28 @@ class IncidentRequest(BaseModel):
         default="general",
         description="Incident category, e.g. 'software', 'hardware', 'access'.",
     )
+    urgency: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=3,
+        description="ServiceNow urgency: 1=High, 2=Medium, 3=Low. "
+        "Auto-triaged from the description if omitted.",
+    )
+    impact: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=3,
+        description="ServiceNow impact: 1=High, 2=Medium, 3=Low. "
+        "Auto-triaged if omitted. ServiceNow computes Priority from impact+urgency.",
+    )
+    caller: Optional[str] = Field(
+        default=None,
+        description="Name or email of the scientist reporting the issue.",
+    )
+    contact_type: Optional[str] = Field(
+        default="virtual_agent",
+        description="How the incident was raised (e.g. 'virtual_agent').",
+    )
 
 
 class IncidentResponse(BaseModel):
@@ -171,10 +193,30 @@ class IncidentResponse(BaseModel):
     status: str = Field(default="created")
     title: str = Field(...)
     category: str = Field(...)
+    priority: str = Field(
+        default="",
+        description="Priority ServiceNow computed from impact+urgency.",
+    )
     mock: bool = Field(
         default=True,
         description="True when produced by the mock ServiceNow client.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Triage (AI severity/category suggestion for incidents)
+# ---------------------------------------------------------------------------
+class TriageRequest(BaseModel):
+    title: Optional[str] = Field(default="", description="Short problem summary.")
+    description: str = Field(..., description="Problem description to classify.")
+
+
+class TriageResponse(BaseModel):
+    category: str = Field(..., description="software|hardware|network|access|inquiry")
+    severity: str = Field(..., description="critical|high|medium|low")
+    urgency: int = Field(..., description="ServiceNow urgency 1-3 (1=High).")
+    impact: int = Field(..., description="ServiceNow impact 1-3 (1=High).")
+    priority_label: str = Field(..., description="Human label, e.g. 'P2 - High'.")
 
 
 # ---------------------------------------------------------------------------

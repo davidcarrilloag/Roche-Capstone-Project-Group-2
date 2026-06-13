@@ -1,12 +1,12 @@
 """
 ServiceNow incident creation client.
 
-Owner: ServiceNow API.
+Owner: ServiceNow API (Marcos).
 
-Currently runs in MOCK mode: create_incident() returns a fake incident number
-and logs the payload. The real REST integration only needs to replace the body
-of `_create_real` — the public interface stays identical, so nothing else in
-the app changes when we go live.
+Sends a complete incident to the ServiceNow Table API — short description,
+description, category, caller, contact type, and impact/urgency. ServiceNow
+computes Priority from impact + urgency (the ITIL matrix). Falls back to a mock
+when MOCK_MODE is on or credentials are missing.
 """
 
 from __future__ import annotations
@@ -19,23 +19,59 @@ from config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
+# Our app categories -> ServiceNow out-of-the-box incident categories.
+CATEGORY_MAP = {
+    "software": "software",
+    "hardware": "hardware",
+    "network": "network",
+    "database": "database",
+    "access": "inquiry",
+    "general": "inquiry",
+    "inquiry": "inquiry",
+}
+
+# Priority computed from (impact, urgency) on the 1=High..3=Low scale (OOB matrix).
+_PRIORITY_MATRIX = {
+    (1, 1): 1, (1, 2): 2, (1, 3): 3,
+    (2, 1): 2, (2, 2): 3, (2, 3): 4,
+    (3, 1): 3, (3, 2): 4, (3, 3): 5,
+}
+PRIORITY_LABELS = {
+    1: "1 - Critical", 2: "2 - High", 3: "3 - Moderate",
+    4: "4 - Low", 5: "5 - Planning",
+}
+
+
+def _priority_label(impact: Optional[int], urgency: Optional[int]) -> str:
+    if not impact or not urgency:
+        return PRIORITY_LABELS[4]
+    return PRIORITY_LABELS.get(_PRIORITY_MATRIX.get((impact, urgency), 4), PRIORITY_LABELS[4])
+
 
 class ServiceNowClient:
     """Create IT incidents in ServiceNow (mock or real depending on config)."""
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         self.settings = settings or get_settings()
+        self._user_cache: dict = {}
 
     def create_incident(
-        self, title: str, description: str, category: str = "general"
+        self,
+        title: str,
+        description: str,
+        category: str = "general",
+        urgency: Optional[int] = None,
+        impact: Optional[int] = None,
+        caller: Optional[str] = None,
+        contact_type: Optional[str] = None,
     ) -> dict:
-        """
-        Create an incident and return a dict:
-        {incident_number, status, title, category, mock}.
-        """
+        """Create an incident; returns {incident_number, status, title, category,
+        priority, mock}."""
         if self.settings.mock_mode or not self._real_config_present():
-            return self._create_mock(title, description, category)
-        return self._create_real(title, description, category)
+            return self._create_mock(title, description, category, urgency, impact)
+        return self._create_real(
+            title, description, category, urgency, impact, caller, contact_type
+        )
 
     # ------------------------------------------------------------------
     def _real_config_present(self) -> bool:
@@ -46,43 +82,81 @@ class ServiceNowClient:
             and s.servicenow_password
         )
 
-    def _create_mock(self, title: str, description: str, category: str) -> dict:
-        incident_number = f"INC{random.randint(10_000, 99_999):07d}"[:10]
-        # Normalise to the INCxxxxxxx shape (INC + 7 digits).
+    def _create_mock(self, title, description, category, urgency, impact) -> dict:
         incident_number = "INC" + f"{random.randint(0, 9_999_999):07d}"
+        priority = _priority_label(impact, urgency)
         logger.info(
-            "[MOCK ServiceNow] Created %s | category=%s | title=%s\n%s",
-            incident_number,
-            category,
-            title,
-            description,
+            "[MOCK ServiceNow] %s | cat=%s | urgency=%s impact=%s -> %s | %s",
+            incident_number, category, urgency, impact, priority, title,
         )
         return {
             "incident_number": incident_number,
             "status": "created",
             "title": title,
-            "category": category,
+            "category": CATEGORY_MAP.get(category, "inquiry"),
+            "priority": priority,
             "mock": True,
         }
 
-    def _create_real(self, title: str, description: str, category: str) -> dict:
-        """
-        Real ServiceNow Table API call.
+    def _resolve_caller(self, caller: str):
+        """Best-effort: find a sys_user sys_id by email or name (cached)."""
+        if not caller:
+            return None
+        if caller in self._user_cache:
+            return self._user_cache[caller]
+        sys_id = None
+        try:
+            import httpx
 
-        Implemented with httpx so it can later be made fully async. Kept behind
-        MOCK_MODE until a developer instance is wired up.
-        """
+            r = httpx.get(
+                f"{self.settings.servicenow_instance_url}/api/now/table/sys_user",
+                params={
+                    "sysparm_query": f"email={caller}^ORname={caller}",
+                    "sysparm_fields": "sys_id",
+                    "sysparm_limit": 1,
+                },
+                auth=(self.settings.servicenow_username, self.settings.servicenow_password),
+                headers={"Accept": "application/json"},
+                timeout=15.0,
+            )
+            r.raise_for_status()
+            results = r.json().get("result", [])
+            if results:
+                sys_id = results[0].get("sys_id")
+        except Exception as exc:  # pragma: no cover - network
+            logger.warning("Caller lookup failed for %r: %s", caller, exc)
+        self._user_cache[caller] = sys_id
+        return sys_id
+
+    def _create_real(
+        self, title, description, category, urgency, impact, caller, contact_type
+    ) -> dict:
+        """Real ServiceNow Table API call."""
         import httpx
 
-        url = f"{self.settings.servicenow_instance_url}/api/now/table/incident"
+        sn_category = CATEGORY_MAP.get(category, "inquiry")
         payload = {
             "short_description": title,
             "description": description,
-            "category": category,
+            "category": sn_category,
+            "contact_type": contact_type or "virtual_agent",
         }
+        if urgency:
+            payload["urgency"] = str(urgency)
+        if impact:
+            payload["impact"] = str(impact)
+
+        if caller:
+            caller_sys_id = self._resolve_caller(caller)
+            if caller_sys_id:
+                payload["caller_id"] = caller_sys_id
+            else:
+                # Keep the reporter on record even if they're not a SN user.
+                payload["description"] = f"{description}\n\nReported by: {caller}"
+
         try:
             resp = httpx.post(
-                url,
+                f"{self.settings.servicenow_instance_url}/api/now/table/incident",
                 json=payload,
                 auth=(self.settings.servicenow_username, self.settings.servicenow_password),
                 headers={"Content-Type": "application/json", "Accept": "application/json"},
@@ -90,16 +164,19 @@ class ServiceNowClient:
             )
             resp.raise_for_status()
             result = resp.json().get("result", {})
+            pr = str(result.get("priority", "")) or None
+            priority = PRIORITY_LABELS.get(int(pr), _priority_label(impact, urgency)) if pr and pr.isdigit() else _priority_label(impact, urgency)
             return {
                 "incident_number": result.get("number", "UNKNOWN"),
                 "status": "created",
                 "title": title,
-                "category": category,
+                "category": sn_category,
+                "priority": priority,
                 "mock": False,
             }
         except Exception as exc:  # pragma: no cover - network
             logger.exception("ServiceNow call failed, falling back to mock: %s", exc)
-            return self._create_mock(title, description, category)
+            return self._create_mock(title, description, category, urgency, impact)
 
 
 _servicenow_singleton: Optional[ServiceNowClient] = None
