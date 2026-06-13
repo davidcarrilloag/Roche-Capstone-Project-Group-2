@@ -536,15 +536,34 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
     // Recognise in the user's selected language (EN/DE/FR/IT).
     recognition.lang = SPEECH_LANG[language] || "en-US";
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true; // stream words into the box as you speak
     recognition.maxAlternatives = 1;
+
+    // Keep whatever was already typed and append the speech to it.
+    const base = input ? input.trim() + " " : "";
+    let finalTranscript = "";
+
     recognition.onresult = (e) => {
-      const transcript = (e.results[0][0]?.transcript || "").trim();
-      setRecording(false);
-      // Auto-send the spoken question so it behaves like a voice assistant.
-      if (transcript) send(transcript);
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalTranscript += chunk;
+        else interim += chunk;
+      }
+      // Live preview: settled words + the in-progress phrase.
+      setInput(base + finalTranscript + interim);
     };
-    recognition.onend = () => setRecording(false);
+
+    recognition.onend = () => {
+      setRecording(false);
+      const spoken = finalTranscript.trim();
+      if (spoken) {
+        const full = (base + spoken).trim();
+        setInput(full);
+        send(full); // auto-send once you stop speaking
+      }
+    };
+
     recognition.onerror = (e) => {
       setRecording(false);
       if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
@@ -560,6 +579,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
         ]);
       }
     };
+
     recognitionRef.current = recognition;
     try {
       recognition.start();
