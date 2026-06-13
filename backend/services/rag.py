@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections import defaultdict
 from typing import List, Optional
 
 from config import Settings, get_settings
@@ -147,19 +148,40 @@ class RAGService:
         return "low"
 
     @staticmethod
-    def _retrieval_query(question: str, history: Optional[List[dict]]) -> str:
-        """
-        For short / follow-up questions, prepend the previous user turn so
-        retrieval has enough context (e.g. "what about step 2?").
-        """
+    def _is_followup(question: str) -> bool:
+        """A short message or a connector ('and...', 'what about...') likely
+        depends on the previous turns to be understood."""
         q = question.strip()
-        ql = q.lower()
-        is_followup = len(q.split()) <= 5 or ql.startswith(_FOLLOWUP_PREFIXES)
-        if is_followup and history:
-            for turn in reversed(history):
-                if turn.get("role") == "user" and str(turn.get("text", "")).strip():
-                    return f"{str(turn['text']).strip()} {q}"
-        return q
+        return len(q.split()) <= 6 or q.lower().startswith(_FOLLOWUP_PREFIXES)
+
+    def _standalone_query(self, question: str, history: List[dict]) -> str:
+        """
+        Rewrite a follow-up into a self-contained search query using the
+        conversation, so retrieval targets the *new* intent (e.g.
+        "what about returning them?" -> "How do I return chemicals?").
+        Falls back to the raw question on any error.
+        """
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        convo = "\n".join(
+            f"{t.get('role')}: {str(t.get('text', ''))[:200]}"
+            for t in history[-4:]
+            if str(t.get("text", "")).strip()
+        )
+        system = (
+            "Rewrite the user's last message into a single standalone search "
+            "query that captures their current intent, resolving references to "
+            "earlier turns. Return ONLY the query — no quotes, no explanation."
+        )
+        user = f"Conversation:\n{convo}\n\nLast message: {question}\n\nStandalone query:"
+        try:
+            out = self._get_llm().invoke(
+                [SystemMessage(content=system), HumanMessage(content=user)]
+            ).content.strip().strip("\"'")
+            return out[:200] if out else question
+        except Exception as exc:  # pragma: no cover - network/defensive
+            logger.warning("Query rewrite failed, using raw question: %s", exc)
+            return question
 
     # ------------------------------------------------------------------
     def query(
@@ -174,7 +196,10 @@ class RAGService:
         if not self.settings.has_google:
             return _empty_result(_msg(NOT_CONFIGURED, lang))
 
-        retrieval_query = self._retrieval_query(question, history)
+        retrieval_query = question
+        if history and self._is_followup(question):
+            retrieval_query = self._standalone_query(question, history)
+            logger.info("Follow-up rewrite: %r -> %r", question, retrieval_query)
         try:
             store = self._get_store()
             results = store.similarity_search_with_relevance_scores(retrieval_query, k=TOP_K)
@@ -185,40 +210,51 @@ class RAGService:
         if not results:
             return _empty_result(_msg(EMPTY_INDEX, lang))
 
-        docs, scores = zip(*results)
+        _, scores = zip(*results)
         # Average the top-N scores for a more robust confidence than top-1.
         top_scores = [float(s) for s in scores[:CONFIDENCE_TOP_N]]
         confidence = sum(top_scores) / len(top_scores)
         low_confidence = confidence < self.settings.confidence_threshold
 
-        top = docs[0].metadata
-        source = {
-            "title": top.get("title", "Unknown"),
-            "doc_id": top.get("doc_id", "N/A"),
-            "version": top.get("version", "N/A"),
-            "date": top.get("date", "N/A"),
-        }
-        context = "\n\n---\n\n".join(d.page_content for d in docs)
+        # Label each chunk with its doc id so the model can tell us which
+        # document it actually used (CITED=<id>). Keep a metadata map and a
+        # cumulative-score fallback for the citation.
+        meta_by_id: dict = {}
+        doc_scores: dict = defaultdict(float)
+        labeled = []
+        for d, s in results:
+            key = d.metadata.get("doc_id") or d.metadata.get("title", "?")
+            meta_by_id.setdefault(key, d.metadata)
+            doc_scores[key] += float(s)
+            labeled.append(f"[DOC {key}] {d.metadata.get('title', '')}\n{d.page_content}")
+        context = "\n\n---\n\n".join(labeled)
+        fallback_key = max(doc_scores, key=doc_scores.get)
 
-        raw = self._generate(question, context, lang, source, history)
+        raw = self._generate(question, context, lang, history)
         if raw == _RATE_LIMITED_MARK:
             return _empty_result(_msg(RATE_LIMITED, lang))
         if raw == _GEN_ERROR_MARK:
             return _empty_result(_msg(GENERATION_ERROR, lang))
 
-        # Language-agnostic grounding: the model returns NO_ANSWER if the
-        # context didn't cover the question.
-        grounded = NO_ANSWER not in raw.upper()
+        # Parse the cited document and strip control lines from the answer.
+        m = re.search(r"CITED\s*=\s*([^\s\]\n]+)", raw, flags=re.I)
+        cited = m.group(1).strip() if m else None
+        answer = re.sub(r"\s*CITED\s*=.*$", "", raw, flags=re.I | re.S).strip()
+        answer = re.sub(r"\s*\[source:.*?\]\s*$", "", answer, flags=re.I | re.S).strip()
+
+        # Language-agnostic grounding: NO_ANSWER (or CITED=NONE) => not grounded.
+        grounded = NO_ANSWER not in raw.upper() and (cited or "").upper() != "NONE"
         if not grounded:
             return _empty_result(_msg(NOT_FOUND, lang))
 
+        top = meta_by_id.get(cited) or meta_by_id.get(fallback_key, {})
         warning = _msg(LOW_CONF_WARNING, lang) if low_confidence else ""
         return {
-            "answer": raw,
-            "source_doc": source["title"],
-            "source_page": source["doc_id"],
-            "source_version": source["version"],
-            "source_last_updated": source["date"],
+            "answer": answer,
+            "source_doc": top.get("title", "Unknown"),
+            "source_page": top.get("doc_id", "N/A"),
+            "source_version": top.get("version", "N/A"),
+            "source_last_updated": top.get("date", "N/A"),
             "confidence": self._confidence_label(confidence, low_confidence),
             "confidence_warning": warning,
         }
@@ -228,7 +264,6 @@ class RAGService:
         question: str,
         context: str,
         language: str,
-        source: dict,
         history: Optional[List[dict]] = None,
     ) -> str:
         from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -238,12 +273,15 @@ class RAGService:
             f"You are a helpful assistant for Roche laboratory scientists.\n"
             f"Always respond in {language_name}.\n"
             "Answer the user's latest question using ONLY the information in the "
-            "context below. You may use the earlier conversation to resolve "
-            "follow-ups (e.g. 'what about step 2?'). Do not make up information. "
+            "context below. Use the earlier conversation to resolve follow-ups "
+            "(e.g. 'what about step 2?'). Do not make up information.\n"
             f"If the context does not contain the answer, reply with exactly: {NO_ANSWER}\n"
-            "Format answers in markdown: **bold** for key terms/values, and bullet "
-            "points (- item) or numbered lists for steps. Keep it concise. Do NOT "
-            "append a source or citation line — the application adds it separately.\n\n"
+            "Each context chunk is labeled like [DOC <id>]. After your answer, on a "
+            "new final line, output exactly: CITED=<id> with the id of the document "
+            "your answer relied on most (or CITED=NONE). Output nothing after it.\n"
+            "Format the answer in markdown: **bold** for key terms/values, and "
+            "bullet points (- item) or numbered lists for steps. Be concise. Do NOT "
+            "write your own source/citation line in the answer body.\n\n"
             f"Context:\n{context}"
         )
         messages = [SystemMessage(content=system)]
@@ -258,9 +296,7 @@ class RAGService:
         messages.append(HumanMessage(content=question))
 
         try:
-            answer = self._get_llm().invoke(messages).content.strip()
-            # Defensive: strip any "[Source: ...]" the model may still append.
-            return re.sub(r"\s*\[source:.*?\]\s*$", "", answer, flags=re.I | re.S).strip()
+            return self._get_llm().invoke(messages).content.strip()
         except Exception as exc:  # pragma: no cover - network/defensive
             logger.exception("Generation failed: %s", exc)
             m = str(exc).lower()
