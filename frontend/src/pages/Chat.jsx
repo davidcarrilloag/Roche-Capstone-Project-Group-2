@@ -412,6 +412,8 @@ function ThemeToggle({ darkMode, onToggle }) {
 const LANGUAGES = [
   { code: "en", label: "English" },
   { code: "de", label: "Deutsch" },
+  { code: "fr", label: "Français" },
+  { code: "it", label: "Italiano" },
 ];
 
 function SidebarBottomBtn({ icon, label, onClick }) {
@@ -629,7 +631,11 @@ export default function Chat() {
   }, [sessions, activeSessionId]);
 
   function toggleLanguage() {
-    setLanguage((l) => (l === "en" ? "de" : "en"));
+    // Cycle through all supported languages.
+    setLanguage((l) => {
+      const idx = LANGUAGES.findIndex((x) => x.code === l);
+      return LANGUAGES[(idx + 1) % LANGUAGES.length].code;
+    });
   }
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
