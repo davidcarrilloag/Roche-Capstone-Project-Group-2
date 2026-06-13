@@ -23,13 +23,14 @@ logger = logging.getLogger(__name__)
 CATEGORIES = ["software", "hardware", "network", "access", "inquiry"]
 SEVERITIES = ["critical", "high", "medium", "low"]
 
-# severity -> (urgency, impact) on ServiceNow's 1=High .. 3=Low scale.
-# Priority is then computed by ServiceNow: (1,1)->P1, (1,2)->P2, (2,2)->P3, (3,3)->P4/5.
+# severity -> (urgency, impact) on ServiceNow's 1=High .. 3=Low scale, chosen so
+# ServiceNow's priority matrix yields exactly P1..P4 (never P5 "Planning"):
+#   critical (1,1)->P1 · high (1,2)->P2 · medium (2,2)->P3 · low (3,2)->P4
 SEVERITY_TO_UI = {
     "critical": (1, 1),
     "high": (1, 2),
     "medium": (2, 2),
-    "low": (3, 3),
+    "low": (3, 2),
 }
 
 PRIORITY_LABEL = {
