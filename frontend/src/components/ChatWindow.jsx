@@ -8,19 +8,32 @@ import rocheLogoBlue from "../assets/Roche_Logo_Blue.png";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { Paperclip, Mic, ArrowUp, ChevronRight } from "lucide-react";
 
-const WELCOME_SHORTCUTS_EN = [
-  "What trainings do I need as a new employee?",
-  "How do I order lab consumables?",
-  "Waste disposal procedure for chemical waste",
-  "How do I file an IT support ticket?",
-];
-
-const WELCOME_SHORTCUTS_DE = [
-  "Welche Schulungen benötige ich als neuer Mitarbeiter?",
-  "Wie bestelle ich Laborverbrauchsmaterialien?",
-  "Entsorgungsverfahren für Chemikalienabfälle",
-  "Wie reiche ich ein IT-Support-Ticket ein?",
-];
+const WELCOME_SHORTCUTS = {
+  en: [
+    "What trainings do I need as a new employee?",
+    "How do I order lab consumables?",
+    "Waste disposal procedure for chemical waste",
+    "How do I file an IT support ticket?",
+  ],
+  de: [
+    "Welche Schulungen benötige ich als neuer Mitarbeiter?",
+    "Wie bestelle ich Laborverbrauchsmaterialien?",
+    "Entsorgungsverfahren für Chemikalienabfälle",
+    "Wie reiche ich ein IT-Support-Ticket ein?",
+  ],
+  fr: [
+    "De quelles formations ai-je besoin en tant que nouvel employé ?",
+    "Comment commander des consommables de laboratoire ?",
+    "Procédure d'élimination des déchets chimiques",
+    "Comment ouvrir un ticket de support informatique ?",
+  ],
+  it: [
+    "Di quali formazioni ho bisogno come nuovo dipendente?",
+    "Come ordino i materiali di consumo da laboratorio?",
+    "Procedura di smaltimento dei rifiuti chimici",
+    "Come apro un ticket di supporto IT?",
+  ],
+};
 
 const UI_TEXT = {
   en: {
@@ -35,19 +48,42 @@ const UI_TEXT = {
     stillTrouble: "Haben Sie noch Probleme? Sie können ein Support-Ticket erstellen.",
     createTicket: "Support-Ticket erstellen",
   },
+  fr: {
+    labAssistant: "Assistant de laboratoire",
+    subtitle: "Posez vos questions sur les procédures, les équipements, l'intégration ou le support.",
+    stillTrouble: "Toujours un problème ? Vous pouvez ouvrir un ticket de support.",
+    createTicket: "Créer un ticket de support",
+  },
+  it: {
+    labAssistant: "Assistente di laboratorio",
+    subtitle: "Chiedi qualsiasi cosa su procedure, attrezzature, onboarding o supporto.",
+    stillTrouble: "Hai ancora problemi? Puoi aprire un ticket di supporto.",
+    createTicket: "Crea ticket di supporto",
+  },
 };
 
-const PLACEHOLDERS_EN = [
-  "Try: how do I return expired reagents?",
-  "Try: what PPE is required in my lab area?",
-  "Try: how do I request cold storage access?",
-];
-
-const PLACEHOLDERS_DE = [
-  "Wie gehe ich mit abgelaufenen Reagenzien um?",
-  "Welche PSA ist in meinem Laborbereich erforderlich?",
-  "Wie beantrage ich Zugang zur Kühllagerung?",
-];
+const PLACEHOLDERS = {
+  en: [
+    "Try: how do I return expired reagents?",
+    "Try: what PPE is required in my lab area?",
+    "Try: how do I request cold storage access?",
+  ],
+  de: [
+    "Wie gehe ich mit abgelaufenen Reagenzien um?",
+    "Welche PSA ist in meinem Laborbereich erforderlich?",
+    "Wie beantrage ich Zugang zur Kühllagerung?",
+  ],
+  fr: [
+    "Comment retourner des réactifs périmés ?",
+    "Quel EPI est requis dans ma zone de laboratoire ?",
+    "Comment demander l'accès au stockage au froid ?",
+  ],
+  it: [
+    "Come restituisco i reagenti scaduti?",
+    "Quali DPI sono richiesti nella mia area di laboratorio?",
+    "Come richiedo l'accesso alla conservazione a freddo?",
+  ],
+};
 
 function genId() {
   return Math.random().toString(36).slice(2, 11);
@@ -356,7 +392,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
 
   const hasUserMessage = messages.some((m) => m.role === "user");
   const inputEmpty = !input.trim();
-  const placeholders = language === "de" ? PLACEHOLDERS_DE : PLACEHOLDERS_EN;
+  const placeholders = PLACEHOLDERS[language] || PLACEHOLDERS.en;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -383,10 +419,13 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
     }
     if (prevLangRef.current !== language) {
       prevLangRef.current = language;
-      const text =
-        language === "de"
-          ? "─── Auf Deutsch gewechselt ───"
-          : "─── Switched to English ───";
+      const SWITCH_TEXT = {
+        en: "─── Switched to English ───",
+        de: "─── Auf Deutsch gewechselt ───",
+        fr: "─── Passé en français ───",
+        it: "─── Passato all'italiano ───",
+      };
+      const text = SWITCH_TEXT[language] || SWITCH_TEXT.en;
       setMessages((prev) => [
         ...prev,
         { id: genId(), role: "system", text, isSystemDivider: true, timestamp: new Date() },
@@ -588,7 +627,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                 {(UI_TEXT[language] || UI_TEXT.en).subtitle}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {(language === "de" ? WELCOME_SHORTCUTS_DE : WELCOME_SHORTCUTS_EN).map((text) => (
+                {(WELCOME_SHORTCUTS[language] || WELCOME_SHORTCUTS.en).map((text) => (
                   <WelcomeShortcut key={text} text={text} onClick={() => send(text)} />
                 ))}
               </div>
