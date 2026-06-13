@@ -30,6 +30,17 @@ CATEGORY_MAP = {
     "inquiry": "inquiry",
 }
 
+# Our app categories -> ServiceNow assignment group (OOB ITIL group names).
+ASSIGNMENT_GROUP_MAP = {
+    "software": "Software",
+    "hardware": "Hardware",
+    "network": "Network",
+    "database": "Database",
+    "access": "Service Desk",
+    "general": "Service Desk",
+    "inquiry": "Service Desk",
+}
+
 # Priority computed from (impact, urgency) on the 1=High..3=Low scale (OOB matrix).
 _PRIORITY_MATRIX = {
     (1, 1): 1, (1, 2): 2, (1, 3): 3,
@@ -128,6 +139,37 @@ class ServiceNowClient:
         self._user_cache[caller] = sys_id
         return sys_id
 
+    def _resolve_group(self, name: str):
+        """sys_id of an assignment group by name (cached)."""
+        if not name:
+            return None
+        key = f"__group__:{name}"
+        if key in self._user_cache:
+            return self._user_cache[key]
+        sys_id = None
+        try:
+            import httpx
+
+            r = httpx.get(
+                f"{self.settings.servicenow_instance_url}/api/now/table/sys_user_group",
+                params={
+                    "sysparm_query": f"name={name}",
+                    "sysparm_fields": "sys_id",
+                    "sysparm_limit": 1,
+                },
+                auth=(self.settings.servicenow_username, self.settings.servicenow_password),
+                headers={"Accept": "application/json"},
+                timeout=15.0,
+            )
+            r.raise_for_status()
+            results = r.json().get("result", [])
+            if results:
+                sys_id = results[0].get("sys_id")
+        except Exception as exc:  # pragma: no cover - network
+            logger.warning("Group lookup failed for %r: %s", name, exc)
+        self._user_cache[key] = sys_id
+        return sys_id
+
     def _api_user_sys_id(self):
         """sys_id of the authenticated API user — fallback caller so the field
         is never empty when the reporter isn't a ServiceNow user."""
@@ -175,6 +217,11 @@ class ServiceNowClient:
             payload["urgency"] = str(urgency)
         if impact:
             payload["impact"] = str(impact)
+
+        # Route to the right IT queue based on category.
+        group_sys_id = self._resolve_group(ASSIGNMENT_GROUP_MAP.get(category, "Service Desk"))
+        if group_sys_id:
+            payload["assignment_group"] = group_sys_id
 
         if caller:
             caller_sys_id = self._resolve_caller(caller)
