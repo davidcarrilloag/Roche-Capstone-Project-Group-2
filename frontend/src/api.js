@@ -19,9 +19,11 @@ export function sendMessage(query, language = "en", sessionId = "") {
   });
 }
 
-export function submitFeedback(messageId, rating, comment) {
+export function submitFeedback(messageId, rating, comment, reason, topic) {
   const body = { message_id: messageId, rating };
   if (comment) body.comment = comment;
+  if (reason) body.reason = reason;
+  if (topic) body.topic = topic;
   return request("/feedback", {
     method: "POST",
     body: JSON.stringify(body),
