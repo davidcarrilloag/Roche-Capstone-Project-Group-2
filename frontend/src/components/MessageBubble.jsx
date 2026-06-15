@@ -444,58 +444,6 @@ export default function MessageBubble({ message, onRetry, onOpenDocument, langua
       >
         <MessageContent message={message} />
 
-        {/* Read aloud — speaker toggle (visible on hover, or while speaking) */}
-        {canSpeak && (
-          <button
-            onClick={toggleSpeak}
-            aria-label={speaking ? "Stop reading" : "Read aloud"}
-            title={speaking ? "Stop" : "Read aloud"}
-            style={{
-              position: "absolute",
-              top: 6,
-              right: 52,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 24,
-              height: 22,
-              color: speaking ? "var(--accent)" : "var(--text-muted)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              borderRadius: 4,
-              opacity: speaking || bubbleHover ? 1 : 0.6,
-              transition: "opacity 0.12s, color 0.12s",
-            }}
-          >
-            {speaking ? <Square size={13} strokeWidth={2} /> : <Volume2 size={15} strokeWidth={1.75} />}
-          </button>
-        )}
-
-        {/* Copy button — visible on hover */}
-        <button
-          onClick={handleCopy}
-          aria-label="Copy message"
-          title={copied ? "Copied!" : "Copy"}
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            fontSize: 11,
-            color: "var(--text-muted)",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: "2px 4px",
-            borderRadius: 3,
-            fontFamily: "inherit",
-            opacity: bubbleHover ? 1 : 0,
-            transition: "opacity 0.12s",
-          }}
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-
         {/* Source list — attached inside bubble, below a top-border divider */}
         {message.source && (
           <SourceList
@@ -503,6 +451,68 @@ export default function MessageBubble({ message, onRetry, onOpenDocument, langua
             onOpenDocument={onOpenDocument}
           />
         )}
+
+        {/* Action row — bottom-right: read aloud + copy */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            gap: 2,
+            marginTop: 10,
+          }}
+        >
+          {canSpeak && (
+            <button
+              onClick={toggleSpeak}
+              aria-label={speaking ? "Stop reading" : "Read aloud"}
+              title={speaking ? "Stop" : "Read aloud"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 26,
+                height: 24,
+                color: speaking ? "var(--accent)" : "var(--text-muted)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                borderRadius: 5,
+                fontFamily: "inherit",
+                transition: "color 0.12s, background-color 0.12s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--border-subtle)")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            >
+              {speaking ? <Square size={13} strokeWidth={2} /> : <Volume2 size={15} strokeWidth={1.75} />}
+            </button>
+          )}
+          <button
+            onClick={handleCopy}
+            aria-label="Copy message"
+            title={copied ? "Copied!" : "Copy"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 4,
+              height: 24,
+              padding: "0 8px",
+              fontSize: 11,
+              color: copied ? "var(--accent)" : "var(--text-muted)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              borderRadius: 5,
+              fontFamily: "inherit",
+              transition: "color 0.12s, background-color 0.12s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--border-subtle)")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
       </div>
 
       {/* Timestamp */}
