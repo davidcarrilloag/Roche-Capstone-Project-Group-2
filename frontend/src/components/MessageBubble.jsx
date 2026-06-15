@@ -464,7 +464,7 @@ export default function MessageBubble({ message, onRetry, onOpenDocument, langua
               border: "none",
               cursor: "pointer",
               borderRadius: 4,
-              opacity: bubbleHover || speaking ? 1 : 0,
+              opacity: speaking || bubbleHover ? 1 : 0.6,
               transition: "opacity 0.12s, color 0.12s",
             }}
           >
