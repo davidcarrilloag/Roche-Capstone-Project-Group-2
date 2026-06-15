@@ -5,7 +5,7 @@ import DocumentViewer from "../components/DocumentViewer.jsx";
 import SettingsPanel from "../components/SettingsPanel.jsx";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { generateTitle } from "../api.js";
-import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check } from "lucide-react";
+import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2 } from "lucide-react";
 
 function genId() {
   return Math.random().toString(36).slice(2, 11);
@@ -124,37 +124,75 @@ function groupByDate(sessions) {
   return groups;
 }
 
-function SessionItem({ session, active, onClick }) {
+function SessionItem({ session, active, onClick, onDelete }) {
   const [hover, setHover] = useState(false);
+  const [trashHover, setTrashHover] = useState(false);
   const on = active || hover;
   return (
-    <button
+    <div
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       title={session.title}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
       style={{
-        display: "block",
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
         width: "100%",
-        textAlign: "left",
-        padding: "5px 12px 5px 9px",
+        padding: "5px 6px 5px 9px",
         borderRadius: 6,
-        border: "none",
-        borderLeft: "none",
         backgroundColor: on ? "rgba(255,255,255,0.15)" : "transparent",
         color: on ? "#FFFFFF" : "rgba(255,255,255,0.9)",
         fontSize: 12,
         fontFamily: "inherit",
         cursor: "pointer",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
         lineHeight: "1.6",
         transition: "background-color 0.1s, color 0.1s",
       }}
     >
-      {session.title}
-    </button>
+      <span
+        style={{
+          flex: 1,
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {session.title}
+      </span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        onMouseEnter={() => setTrashHover(true)}
+        onMouseLeave={() => setTrashHover(false)}
+        title="Delete chat"
+        aria-label="Delete chat"
+        style={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 22,
+          height: 22,
+          border: "none",
+          background: trashHover ? "rgba(255,255,255,0.15)" : "transparent",
+          cursor: "pointer",
+          borderRadius: 4,
+          padding: 0,
+          color: trashHover ? "#FFFFFF" : "rgba(255,255,255,0.55)",
+          opacity: hover ? 1 : 0,
+          transition: "opacity 0.1s, color 0.1s, background-color 0.1s",
+        }}
+      >
+        <Trash2 size={13} strokeWidth={1.75} />
+      </button>
+    </div>
   );
 }
 
@@ -768,6 +806,16 @@ export default function Chat() {
     setActiveTab("chat");
   }
 
+  function deleteSession(sessionId) {
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    titledSessions.current.delete(sessionId);
+    // If the open chat was deleted, drop into a fresh empty chat.
+    if (sessionId === activeSessionId) {
+      setActiveSessionId(genId());
+      setActiveTab("chat");
+    }
+  }
+
   const savedSessions = sessions.filter((s) => s.messages.some((m) => m.role === "user"));
   const sessionGroups = groupByDate(savedSessions);
   const hasHistory = sessionGroups.length > 0;
@@ -858,6 +906,7 @@ export default function Chat() {
                     session={session}
                     active={session.id === activeSessionId && activeTab === "chat"}
                     onClick={() => loadSession(session.id)}
+                    onDelete={() => deleteSession(session.id)}
                   />
                 ))}
               </div>
