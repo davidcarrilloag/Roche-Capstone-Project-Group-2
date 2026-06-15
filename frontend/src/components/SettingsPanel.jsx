@@ -139,6 +139,8 @@ export default function SettingsPanel({
   onSetVoiceEnabled,
   voiceAutoSend,
   onSetVoiceAutoSend,
+  voiceAutoSpeak,
+  onSetVoiceAutoSpeak,
   ticketCaller,
   onSetTicketCaller,
   onClearData,
@@ -277,10 +279,18 @@ export default function SettingsPanel({
                 onChange={onSetVoiceAutoSend}
                 label="Send automatically when I stop speaking"
               />
-              <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "2px 0 0", lineHeight: 1.4 }}>
+              <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "2px 0 8px", lineHeight: 1.4 }}>
                 When off, the words just fill the box so you can edit before sending.
               </p>
             </div>
+            <Toggle
+              checked={voiceAutoSpeak}
+              onChange={onSetVoiceAutoSpeak}
+              label="Read answers aloud automatically"
+            />
+            <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "2px 0 0", lineHeight: 1.4 }}>
+              You can also read any answer with the 🔊 button on it.
+            </p>
           </Section>
 
           {/* Ticket identity */}

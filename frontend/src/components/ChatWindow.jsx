@@ -7,6 +7,7 @@ import ThinkingIndicator from "./ThinkingIndicator.jsx";
 import rocheLogoBlue from "../assets/Roche_Logo_Blue.png";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { Paperclip, Mic, ArrowUp, ChevronRight } from "lucide-react";
+import { speak, stopSpeaking } from "../lib/tts.js";
 
 const WELCOME_SHORTCUTS = {
   en: [
@@ -369,7 +370,7 @@ function WelcomeShortcut({ text, onClick }) {
   );
 }
 
-export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages, onOpenDocument, darkMode = false, voiceEnabled = true, voiceAutoSend = true }) {
+export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages, onOpenDocument, darkMode = false, voiceEnabled = true, voiceAutoSend = true, voiceAutoSpeak = false }) {
   const [internalMessages, setInternalMessages] = useState([]);
   const messages = propMessages !== undefined ? propMessages : internalMessages;
   const setMessages = propSetMessages !== undefined ? propSetMessages : setInternalMessages;
@@ -389,6 +390,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   const textareaRef = useRef(null);
   const recognitionRef = useRef(null);
   const lastQueryRef = useRef("");
+  const lastSpokenRef = useRef(null);
 
   const hasUserMessage = messages.some((m) => m.role === "user");
   const inputEmpty = !input.trim();
@@ -436,6 +438,19 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   useEffect(() => {
     setSpeechSupported(!!(window.SpeechRecognition || window.webkitSpeechRecognition));
   }, []);
+
+  // Auto-read the newest assistant answer aloud when the setting is on.
+  useEffect(() => {
+    if (!voiceAutoSpeak) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant" || last.isError) return;
+    if (lastSpokenRef.current === last.id) return;
+    lastSpokenRef.current = last.id;
+    speak(last.text, language);
+  }, [messages, voiceAutoSpeak, language]);
+
+  // Stop any speech when leaving this chat.
+  useEffect(() => () => stopSpeaking(), []);
 
   useEffect(() => {
     const ta = textareaRef.current;
@@ -724,6 +739,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                 <div key={msg.id} className="msg-fade-up" style={{ marginBottom: 20 }}>
                   <MessageBubble
                     message={msg}
+                    language={language}
                     onRetry={msg.isError ? retryLastQuery : undefined}
                     onOpenDocument={onOpenDocument}
                   />

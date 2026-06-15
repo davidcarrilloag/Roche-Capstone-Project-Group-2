@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { FileText, AlertCircle, ChevronRight } from "lucide-react";
+import { FileText, AlertCircle, ChevronRight, Volume2, Square } from "lucide-react";
+import { ttsSupported, speak, stopSpeaking } from "../lib/tts.js";
 
 // Inline-styled renderers for readable, scannable answers. listStyleType is set
 // explicitly so bullet dots / numbers always show regardless of CSS resets.
@@ -342,11 +343,28 @@ function MessageContent({ message }) {
 //   message      – message object (role, text, isError, errorDetail, source, confidence, …)
 //   onRetry      – () => void — passed only for isError messages
 //   onOpenDocument – (source) => void — opens document in Documents tab
-export default function MessageBubble({ message, onRetry, onOpenDocument }) {
+export default function MessageBubble({ message, onRetry, onOpenDocument, language = "en" }) {
   const isUser = message.role === "user";
   const isError = message.isError === true;
   const [copied, setCopied] = useState(false);
   const [bubbleHover, setBubbleHover] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const canSpeak = ttsSupported();
+
+  // Stop speech if this bubble unmounts while talking.
+  useEffect(() => () => { if (speaking) stopSpeaking(); }, [speaking]);
+
+  function toggleSpeak() {
+    if (speaking) {
+      stopSpeaking();
+      setSpeaking(false);
+      return;
+    }
+    speak(message.text, language, {
+      onStart: () => setSpeaking(true),
+      onEnd: () => setSpeaking(false),
+    });
+  }
 
   const showConfidenceWarning =
     !isUser &&
@@ -425,6 +443,34 @@ export default function MessageBubble({ message, onRetry, onOpenDocument }) {
         onMouseLeave={() => setBubbleHover(false)}
       >
         <MessageContent message={message} />
+
+        {/* Read aloud — speaker toggle (visible on hover, or while speaking) */}
+        {canSpeak && (
+          <button
+            onClick={toggleSpeak}
+            aria-label={speaking ? "Stop reading" : "Read aloud"}
+            title={speaking ? "Stop" : "Read aloud"}
+            style={{
+              position: "absolute",
+              top: 6,
+              right: 52,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 24,
+              height: 22,
+              color: speaking ? "var(--accent)" : "var(--text-muted)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              borderRadius: 4,
+              opacity: bubbleHover || speaking ? 1 : 0,
+              transition: "opacity 0.12s, color 0.12s",
+            }}
+          >
+            {speaking ? <Square size={13} strokeWidth={2} /> : <Volume2 size={15} strokeWidth={1.75} />}
+          </button>
+        )}
 
         {/* Copy button — visible on hover */}
         <button

@@ -596,6 +596,9 @@ export default function Chat() {
   const [voiceAutoSend, setVoiceAutoSendState] = useState(() => {
     try { return localStorage.getItem("voiceAutoSend") !== "false"; } catch { return true; }
   });
+  const [voiceAutoSpeak, setVoiceAutoSpeakState] = useState(() => {
+    try { return localStorage.getItem("voiceAutoSpeak") === "true"; } catch { return false; }
+  });
   const [ticketCaller, setTicketCallerState] = useState(() => {
     try { return localStorage.getItem("ticketCaller") || ""; } catch { return ""; }
   });
@@ -640,6 +643,10 @@ export default function Chat() {
   function setVoiceAutoSend(v) {
     setVoiceAutoSendState(v);
     persist("voiceAutoSend", v ? "true" : "false");
+  }
+  function setVoiceAutoSpeak(v) {
+    setVoiceAutoSpeakState(v);
+    persist("voiceAutoSpeak", v ? "true" : "false");
   }
   function setTicketCaller(v) {
     setTicketCallerState(v);
@@ -930,6 +937,7 @@ export default function Chat() {
               darkMode={darkMode}
               voiceEnabled={voiceEnabled}
               voiceAutoSend={voiceAutoSend}
+              voiceAutoSpeak={voiceAutoSpeak}
             />
           )}
         </div>
@@ -946,6 +954,8 @@ export default function Chat() {
           onSetVoiceEnabled={setVoiceEnabled}
           voiceAutoSend={voiceAutoSend}
           onSetVoiceAutoSend={setVoiceAutoSend}
+          voiceAutoSpeak={voiceAutoSpeak}
+          onSetVoiceAutoSpeak={setVoiceAutoSpeak}
           ticketCaller={ticketCaller}
           onSetTicketCaller={setTicketCaller}
           onClearData={clearChatData}
