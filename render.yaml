@@ -1,0 +1,52 @@
+# Render Blueprint — one click deploys both services.
+# Backend = FastAPI web service (your API keys live here, server-side).
+# Frontend = static React site that talks to the backend.
+#
+# Nothing in the application code is changed by this file; it only describes
+# how to build and run what already exists. Secrets are entered in the Render
+# dashboard (sync: false) and are never committed.
+
+services:
+  # ── Backend API ────────────────────────────────────────────────
+  - type: web
+    name: roche-scientist-assistant-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r ../requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.7"
+      # --- RAG (required so chat/triage work) ---
+      - key: GOOGLE_API_KEY
+        sync: false           # paste your Gemini key in the dashboard
+      # --- ServiceNow: enter the SAME values you use locally ---
+      - key: MOCK_MODE
+        sync: false
+      - key: SERVICENOW_INSTANCE_URL
+        sync: false
+      - key: SERVICENOW_USERNAME
+        sync: false
+      - key: SERVICENOW_PASSWORD
+        sync: false
+
+  # ── Frontend (static React build) ──────────────────────────────
+  - type: web
+    name: roche-scientist-assistant
+    runtime: static
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: dist
+    envVars:
+      # Backend base URL (no trailing /api). If Render renames the API service,
+      # replace this with the real URL shown on the API service page, then
+      # redeploy the static site.
+      - key: VITE_API_URL
+        value: "https://roche-scientist-assistant-api.onrender.com"
+    routes:
+      # SPA fallback so client-side routes resolve to index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html

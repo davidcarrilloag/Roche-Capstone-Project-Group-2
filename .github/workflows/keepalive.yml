@@ -1,0 +1,23 @@
+name: Keep Render backend awake
+
+# Render's free web service sleeps after ~15 min idle, adding a slow cold start
+# on the next request. This pings the health endpoint every ~14 minutes so the
+# demo backend stays warm during testing — set once, no babysitting.
+#
+# If you stop demoing, disable this workflow (Actions tab → this workflow →
+# "Disable workflow") so it doesn't keep the service running.
+
+on:
+  schedule:
+    - cron: "*/14 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          curl -fsS --max-time 60 \
+            https://roche-scientist-assistant-api.onrender.com/health \
+            || echo "ping failed (service may be waking up) — will retry next run"
