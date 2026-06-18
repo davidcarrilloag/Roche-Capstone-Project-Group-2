@@ -51,9 +51,13 @@ app.include_router(feedback.router)
 app.include_router(incidents.router)
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 async def health() -> HealthResponse:
-    """Liveness probe used by Render and local smoke tests."""
+    """Liveness probe used by Render and local smoke tests (GET/HEAD).
+
+    HEAD is accepted so free uptime pingers (UptimeRobot) that can only send
+    HEAD get a 200 instead of 405 — keeps the free Render instance warm.
+    """
     return HealthResponse(status="ok")
 
 
