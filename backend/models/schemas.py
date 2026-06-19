@@ -233,6 +233,48 @@ class TitleResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Equipment booking
+# ---------------------------------------------------------------------------
+class EquipmentItem(BaseModel):
+    """A bookable piece of lab equipment."""
+
+    id: str = Field(..., description="Stable equipment id, e.g. 'centrifuge-01'.")
+    name: str = Field(..., description="Display name, e.g. 'Centrifuge (Eppendorf 5424R)'.")
+    category: str = Field(default="", description="Grouping, e.g. 'Sample prep'.")
+    location: str = Field(default="", description="Room/lab where it lives.")
+
+
+class BookingRequest(BaseModel):
+    """Payload to reserve a piece of equipment."""
+
+    equipment_id: str = Field(..., description="Which equipment to book.")
+    date: str = Field(..., description="Reservation date, ISO 'YYYY-MM-DD'.")
+    time: str = Field(..., description="Start time, 24h 'HH:MM'.")
+    duration_minutes: int = Field(
+        default=60, ge=15, le=480, description="Reservation length in minutes."
+    )
+    user: Optional[str] = Field(
+        default=None, description="Name or email of the scientist booking."
+    )
+    session_id: Optional[str] = Field(default=None, description="Originating session id.")
+
+
+class BookingResponse(BaseModel):
+    """Result of a booking attempt."""
+
+    reference: str = Field(default="", description="e.g. 'BKG-0007' (empty on conflict).")
+    status: str = Field(..., description="'confirmed' | 'conflict'.")
+    equipment_id: str = Field(default="")
+    equipment_name: str = Field(default="")
+    location: str = Field(default="")
+    date: str = Field(default="")
+    time: str = Field(default="")
+    duration_minutes: int = Field(default=60)
+    user: str = Field(default="")
+    message: str = Field(default="", description="Human-readable note, e.g. a conflict reason.")
+
+
+# ---------------------------------------------------------------------------
 # Misc
 # ---------------------------------------------------------------------------
 class HealthResponse(BaseModel):

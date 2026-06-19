@@ -73,6 +73,18 @@ export function generateTitle(messages) {
   });
 }
 
+// Equipment booking
+export function listEquipment() {
+  return request("/equipment");
+}
+
+export function createBooking({ equipment_id, date, time, duration_minutes, user }) {
+  return request("/bookings", {
+    method: "POST",
+    body: JSON.stringify({ equipment_id, date, time, duration_minutes, user }),
+  });
+}
+
 // Legacy api object — used by Dashboard and any other consumers
 export const api = {
   health: () => request("/health"),

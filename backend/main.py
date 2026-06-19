@@ -21,7 +21,7 @@ from fastapi import Query
 
 from config import get_settings
 from models.schemas import HealthResponse
-from routes import chat, feedback, incidents
+from routes import bookings, chat, feedback, incidents
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,6 +49,7 @@ app.add_middleware(
 app.include_router(chat.router)
 app.include_router(feedback.router)
 app.include_router(incidents.router)
+app.include_router(bookings.router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
