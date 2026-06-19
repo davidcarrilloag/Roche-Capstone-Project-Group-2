@@ -302,6 +302,25 @@ class ColleagueRequestAnswer(BaseModel):
     answer: str = Field(..., description="The colleague's answer.")
 
 
+class MeetingRequest(BaseModel):
+    with_member: str = Field(..., description="Colleague to meet.")
+    date: str = Field(..., description="ISO 'YYYY-MM-DD'.")
+    time: str = Field(..., description="24h 'HH:MM'.")
+    duration_minutes: int = Field(default=30, ge=15, le=240)
+    topic: Optional[str] = Field(default=None, description="What the meeting is about.")
+    from_user: Optional[str] = Field(default=None, description="Who is scheduling.")
+
+
+class MeetingResponse(BaseModel):
+    status: str = Field(..., description="'scheduled' | 'no_calendar'.")
+    summary: str = Field(default="")
+    with_member: str = Field(default="")
+    date: str = Field(default="")
+    time: str = Field(default="")
+    duration_minutes: int = Field(default=30)
+    calendar_link: str = Field(default="")
+
+
 # ---------------------------------------------------------------------------
 # Misc
 # ---------------------------------------------------------------------------

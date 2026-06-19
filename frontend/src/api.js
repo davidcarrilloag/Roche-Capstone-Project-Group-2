@@ -109,6 +109,13 @@ export function answerColleagueRequest(id, answer) {
   });
 }
 
+export function scheduleMeeting({ with_member, date, time, duration_minutes, topic, from_user }) {
+  return request("/meetings", {
+    method: "POST",
+    body: JSON.stringify({ with_member, date, time, duration_minutes, topic, from_user }),
+  });
+}
+
 // Equipment booking
 export function listEquipment() {
   return request("/equipment");

@@ -22,10 +22,40 @@ from models.schemas import (
     ColleagueRequestCreate,
     ExpertOut,
     ExpertSuggestRequest,
+    MeetingRequest,
+    MeetingResponse,
 )
+from services.calendar import CalendarService, get_calendar_service
 from services.experts import suggest_experts
 
 router = APIRouter(tags=["experts"])
+
+
+@router.post("/meetings", response_model=MeetingResponse)
+def schedule_meeting(
+    request: MeetingRequest,
+    calendar: CalendarService = Depends(get_calendar_service),
+) -> MeetingResponse:
+    who = request.from_user or "You"
+    summary = f"Meeting: {who} & {request.with_member}"
+    description = request.topic or "Discussion"
+    link = calendar.create_event(
+        summary=summary,
+        description=description,
+        location="",
+        date=request.date,
+        time=request.time,
+        duration_minutes=request.duration_minutes,
+    )
+    return MeetingResponse(
+        status="scheduled" if link else "no_calendar",
+        summary=summary,
+        with_member=request.with_member,
+        date=request.date,
+        time=request.time,
+        duration_minutes=request.duration_minutes,
+        calendar_link=link or "",
+    )
 
 
 @router.post("/experts/suggest", response_model=List[ExpertOut])
