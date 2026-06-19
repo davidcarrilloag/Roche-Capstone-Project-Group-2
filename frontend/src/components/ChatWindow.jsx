@@ -45,6 +45,7 @@ const UI_TEXT = {
     createTicket: "Create support ticket",
     bookPrompt: "Want to reserve it? Book the equipment in a few clicks.",
     bookEquipment: "Book equipment",
+    bookingLead: "Sure — I can reserve that for you. Just confirm the details below.",
   },
   de: {
     labAssistant: "Labor-Assistent",
@@ -53,6 +54,7 @@ const UI_TEXT = {
     createTicket: "Support-Ticket erstellen",
     bookPrompt: "Möchten Sie es reservieren? Buchen Sie das Gerät mit wenigen Klicks.",
     bookEquipment: "Gerät buchen",
+    bookingLead: "Gern — ich kann das für Sie reservieren. Bestätigen Sie einfach die Details unten.",
   },
   fr: {
     labAssistant: "Assistant de laboratoire",
@@ -61,6 +63,7 @@ const UI_TEXT = {
     createTicket: "Créer un ticket de support",
     bookPrompt: "Vous voulez le réserver ? Réservez l'équipement en quelques clics.",
     bookEquipment: "Réserver un équipement",
+    bookingLead: "Bien sûr — je peux le réserver pour vous. Confirmez simplement les détails ci-dessous.",
   },
   it: {
     labAssistant: "Assistente di laboratorio",
@@ -69,6 +72,7 @@ const UI_TEXT = {
     createTicket: "Crea ticket di supporto",
     bookPrompt: "Vuoi prenotarlo? Prenota l'attrezzatura in pochi clic.",
     bookEquipment: "Prenota attrezzatura",
+    bookingLead: "Certo — posso prenotarlo per te. Conferma i dettagli qui sotto.",
   },
 };
 
@@ -137,6 +141,15 @@ function suggestsBooking(text) {
   const hasVerb = verbs.some((w) => t.includes(w));
   const hasThing = things.some((w) => t.includes(w));
   return hasVerb && hasThing;
+}
+
+// A booking *command* (act on it) vs a how-to *question* (answer from the SOP).
+function isBookingCommand(text) {
+  const t = (text || "").toLowerCase();
+  if (!suggestsBooking(t)) return false;
+  const questionWords = ["how ", "how’", "what ", "where ", "why ", "cómo", "como ", "qué", "dónde", "donde", "procedure", "procedimiento", "comment ", "?"];
+  if (questionWords.some((q) => t.includes(q))) return false;
+  return true;
 }
 
 const FOLLOW_UP_RULES = [
@@ -546,6 +559,20 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
     const query = (text ?? input).trim();
     if (!query || busy) return null;
     lastQueryRef.current = query;
+
+    // Booking command → take the action (pre-filled form), don't recite the SOP.
+    // Skipped during a voice call so we don't pop a modal behind the call overlay.
+    if (!callActive && isBookingCommand(query)) {
+      const lead = (UI_TEXT[language] || UI_TEXT.en).bookingLead;
+      setMessages((prev) => [
+        ...prev,
+        { id: genId(), role: "user", text: query, timestamp: new Date() },
+        { id: genId(), role: "assistant", text: lead, timestamp: new Date() },
+      ]);
+      setInput("");
+      openBooking(query);
+      return null;
+    }
 
     setMessages((prev) => [
       ...prev,

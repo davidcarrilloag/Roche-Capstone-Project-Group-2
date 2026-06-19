@@ -26,10 +26,15 @@ const KEYWORDS = [
   [["mass spec", "spectrometer"], "massspec-01"],
 ];
 
+// Local (not UTC) ISO date so we never shift a day across timezones.
+function isoLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function tomorrowISO() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  return isoLocal(d);
 }
 
 function guessEquipment(text) {
@@ -40,11 +45,62 @@ function guessEquipment(text) {
   return "";
 }
 
+const WEEKDAYS = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+  domingo: 0, lunes: 1, martes: 2, miércoles: 3, miercoles: 3, jueves: 4, viernes: 5, sábado: 6, sabado: 6,
+};
+
+function nextWeekday(from, dow) {
+  const d = new Date(from);
+  d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7));
+  return d;
+}
+
+// Best-effort: pull a date + an on-the-hour time out of natural language.
+function parseDateTime(text) {
+  const t = (text || "").toLowerCase();
+  let date = null;
+  let time = null;
+
+  // Time — "3pm", "3 pm", "3:30pm", "15:00", "at 2"
+  const ampm = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
+  const h24 = t.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (ampm) {
+    let h = parseInt(ampm[1], 10) % 12;
+    if (ampm[3] === "pm") h += 12;
+    time = `${String(h).padStart(2, "0")}:00`;
+  } else if (h24) {
+    time = `${String(parseInt(h24[1], 10)).padStart(2, "0")}:00`;
+  }
+
+  // Date — explicit ISO wins, then today/tomorrow, then weekday names.
+  const iso = t.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+  const today = new Date();
+  if (iso) {
+    date = iso[1];
+  } else if (t.includes("today") || t.includes("hoy")) {
+    date = isoLocal(today);
+  } else if (t.includes("tomorrow") || t.includes("mañana") || t.includes("manana") || t.includes("domani") || t.includes("demain") || t.includes("morgen")) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + 1);
+    date = isoLocal(d);
+  } else {
+    for (const [name, dow] of Object.entries(WEEKDAYS)) {
+      if (new RegExp(`\\b${name}\\b`).test(t)) {
+        date = isoLocal(nextWeekday(today, dow));
+        break;
+      }
+    }
+  }
+  return { date, time };
+}
+
 export default function BookingForm({ initialText = "", onClose }) {
+  const parsed = parseDateTime(initialText);
   const [equipment, setEquipment] = useState([]);
   const [equipmentId, setEquipmentId] = useState("");
-  const [date, setDate] = useState(tomorrowISO());
-  const [time, setTime] = useState("09:00");
+  const [date, setDate] = useState(parsed.date || tomorrowISO());
+  const [time, setTime] = useState(TIMES.includes(parsed.time) ? parsed.time : "09:00");
   const [duration, setDuration] = useState(60);
   const [user, setUser] = useState(() => {
     try { return localStorage.getItem("ticketCaller") || ""; } catch { return ""; }
