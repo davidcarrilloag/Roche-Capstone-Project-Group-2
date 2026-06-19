@@ -107,6 +107,7 @@ def _empty_result(answer: str) -> dict:
         "source_last_updated": "",
         "confidence": "low",
         "confidence_warning": "",
+        "grounded": False,
     }
 
 
@@ -257,6 +258,7 @@ class RAGService:
             "source_last_updated": top.get("date", "N/A"),
             "confidence": self._confidence_label(confidence, low_confidence),
             "confidence_warning": warning,
+            "grounded": True,
         }
 
     def _generate(

@@ -130,6 +130,7 @@ def chat(
         sentiment=None,
         confidence=result.get("confidence"),
         confidence_warning=result.get("confidence_warning", ""),
+        grounded=result.get("grounded", True),
     )
 
 

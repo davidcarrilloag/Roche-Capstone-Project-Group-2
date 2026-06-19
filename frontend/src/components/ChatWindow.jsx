@@ -48,6 +48,7 @@ const UI_TEXT = {
     bookEquipment: "Book equipment",
     bookingLead: "Sure — I can reserve that for you. Just confirm the details below.",
     askColleague: "Ask a colleague",
+    notInSops: "I couldn't find this in the lab documents. A colleague may know — want to ask an expert?",
   },
   de: {
     labAssistant: "Labor-Assistent",
@@ -58,6 +59,7 @@ const UI_TEXT = {
     bookEquipment: "Gerät buchen",
     bookingLead: "Gern — ich kann das für Sie reservieren. Bestätigen Sie einfach die Details unten.",
     askColleague: "Kollegen fragen",
+    notInSops: "Das steht nicht in den Labordokumenten. Eine Kollegin/ein Kollege weiß es vielleicht — einen Experten fragen?",
   },
   fr: {
     labAssistant: "Assistant de laboratoire",
@@ -68,6 +70,7 @@ const UI_TEXT = {
     bookEquipment: "Réserver un équipement",
     bookingLead: "Bien sûr — je peux le réserver pour vous. Confirmez simplement les détails ci-dessous.",
     askColleague: "Demander à un collègue",
+    notInSops: "Je ne trouve pas cela dans les documents du laboratoire. Un collègue le sait peut-être — demander à un expert ?",
   },
   it: {
     labAssistant: "Assistente di laboratorio",
@@ -78,6 +81,7 @@ const UI_TEXT = {
     bookEquipment: "Prenota attrezzatura",
     bookingLead: "Certo — posso prenotarlo per te. Conferma i dettagli qui sotto.",
     askColleague: "Chiedi a un collega",
+    notInSops: "Non l'ho trovato nei documenti del laboratorio. Un collega potrebbe saperlo — chiedere a un esperto?",
   },
 };
 
@@ -532,6 +536,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
       text: res.answer ?? res.message ?? "No response received.",
       responseType: res.response_type ?? "plain",
       confidence: res.confidence ?? 1,
+      grounded: res.grounded,
       source:
         res.source_doc || res.title
           ? {
@@ -991,14 +996,40 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                         </div>
                       )}
 
+                      {/* Not found in the SOPs → prominent escalation to a human expert */}
+                      {msg.grounded === false && prevUserMsg?.text && (
+                        <div
+                          style={{
+                            marginTop: 14,
+                            padding: "14px 16px",
+                            borderRadius: 10,
+                            backgroundColor: "var(--accent-tint)",
+                            border: "1px solid var(--accent-tint-border)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 14,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <Users size={18} strokeWidth={1.75} color="var(--accent)" style={{ flexShrink: 0 }} />
+                          <span style={{ flex: 1, fontSize: 13, color: "var(--text-primary)", minWidth: 200, lineHeight: 1.5 }}>
+                            {(UI_TEXT[language] || UI_TEXT.en).notInSops}
+                          </span>
+                          <IncidentBtn
+                            label={(UI_TEXT[language] || UI_TEXT.en).askColleague}
+                            onClick={() => setAskColleagueQ(prevUserMsg.text)}
+                          />
+                        </div>
+                      )}
+
                       {/* At most 2 follow-up suggestions, rectangular style */}
                       <SuggestedFollowUps
                         suggestions={followUps.slice(0, 2)}
                         onSelect={(text) => send(text)}
                       />
 
-                      {/* Escalate to a human — route the question to the right expert */}
-                      {isLastAssistant && prevUserMsg?.text && (
+                      {/* Grounded answers: keep a subtle "ask a colleague" on the last turn */}
+                      {isLastAssistant && prevUserMsg?.text && msg.grounded !== false && (
                         <button
                           onClick={() => setAskColleagueQ(prevUserMsg.text)}
                           style={{

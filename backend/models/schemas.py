@@ -92,6 +92,11 @@ class ChatResponse(BaseModel):
         description="A localized low-confidence note (empty when confident); "
         "the frontend can render it as a distinct banner.",
     )
+    grounded: bool = Field(
+        default=True,
+        description="False when the answer wasn't found in the documents — the "
+        "frontend can offer to escalate to a human expert.",
+    )
 
 
 # ---------------------------------------------------------------------------
