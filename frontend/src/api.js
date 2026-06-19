@@ -90,6 +90,10 @@ export function createBooking({ equipment_id, date, time, duration_minutes, user
   });
 }
 
+export function listBookings() {
+  return request("/bookings");
+}
+
 // Legacy api object — used by Dashboard and any other consumers
 export const api = {
   health: () => request("/health"),

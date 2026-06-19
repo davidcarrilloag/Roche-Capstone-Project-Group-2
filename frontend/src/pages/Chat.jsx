@@ -4,9 +4,10 @@ import ChatWindow from "../components/ChatWindow.jsx";
 import DocumentViewer from "../components/DocumentViewer.jsx";
 import SettingsPanel from "../components/SettingsPanel.jsx";
 import IdentityPicker from "../components/IdentityPicker.jsx";
+import TeamSchedule from "../components/TeamSchedule.jsx";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { generateTitle } from "../api.js";
-import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2 } from "lucide-react";
+import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2, CalendarDays } from "lucide-react";
 
 function genId() {
   return Math.random().toString(36).slice(2, 11);
@@ -877,6 +878,12 @@ export default function Chat() {
               active={activeTab === "documents"}
               onClick={() => setActiveTab("documents")}
             />
+            <NavItem
+              icon={<CalendarDays size={16} strokeWidth={1.5} />}
+              label="Team schedule"
+              active={activeTab === "schedule"}
+              onClick={() => setActiveTab("schedule")}
+            />
           </nav>
 
           {/* Chat history list — scrollable, fills remaining space */}
@@ -961,7 +968,7 @@ export default function Chat() {
               <Menu size={16} strokeWidth={1.5} />
             </TopbarBtn>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-              {activeTab === "documents" ? "Documents" : "Chat"}
+              {activeTab === "documents" ? "Documents" : activeTab === "schedule" ? "Team schedule" : "Chat"}
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", paddingRight: 20 }}>
@@ -977,6 +984,8 @@ export default function Chat() {
               openDoc={openDoc}
               setOpenDoc={setOpenDoc}
             />
+          ) : activeTab === "schedule" ? (
+            <TeamSchedule />
           ) : (
             <ChatWindow
               key={activeSessionId}
