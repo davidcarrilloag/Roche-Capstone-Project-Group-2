@@ -21,7 +21,7 @@ from fastapi import Query
 
 from config import get_settings
 from models.schemas import HealthResponse
-from routes import bookings, chat, feedback, incidents
+from routes import bookings, chat, feedback, incidents, members
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,6 +50,7 @@ app.include_router(chat.router)
 app.include_router(feedback.router)
 app.include_router(incidents.router)
 app.include_router(bookings.router)
+app.include_router(members.router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
@@ -80,6 +81,14 @@ async def reindex(sync_drive: bool = Query(default=False)) -> dict:
 async def on_startup() -> None:
     settings = get_settings()
     logger.info("Starting Scientist Assistant backend")
+
+    # Initialise the database (tables + synthetic lab-member roster).
+    try:
+        from db import init_db
+
+        init_db()
+    except Exception as exc:  # never block startup on the DB
+        logger.warning("DB init skipped: %s", exc)
     logger.info(
         "MOCK_MODE=%s | Groq=%s | Gemini/RAG=%s",
         settings.mock_mode, settings.has_groq, settings.has_google,

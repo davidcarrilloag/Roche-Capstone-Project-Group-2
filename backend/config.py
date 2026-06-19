@@ -64,6 +64,13 @@ class Settings:
         self.servicenow_username: str = os.getenv("SERVICENOW_USERNAME", "")
         self.servicenow_password: str = os.getenv("SERVICENOW_PASSWORD", "")
 
+        # --- Persistence (lab members, bookings) ---
+        # SQLite file by default; override with DATABASE_URL for Postgres etc.
+        self.database_url: str = os.getenv(
+            "DATABASE_URL",
+            "sqlite:///" + (REPO_ROOT / "data" / "app.db").as_posix(),
+        )
+
         # --- Behaviour flags ---
         # When true, external integrations (ServiceNow) return mock data.
         self.mock_mode: bool = os.getenv("MOCK_MODE", "true").lower() == "true"

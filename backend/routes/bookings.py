@@ -62,6 +62,7 @@ def create_booking(
         )
         if link:
             result["calendar_link"] = link
+            booking.set_calendar_link(result["reference"], link)
 
     return BookingResponse(**result)
 
@@ -70,4 +71,4 @@ def create_booking(
 def list_bookings(
     booking: BookingService = Depends(get_booking_service),
 ) -> List[BookingResponse]:
-    return [BookingResponse(**b, message="") for b in booking.list_bookings()]
+    return [BookingResponse(**b) for b in booking.list_bookings()]

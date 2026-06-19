@@ -34,3 +34,7 @@ service_account*.json
 Thumbs.db
 .idea/
 .vscode/
+
+# Local database
+data/app.db
+*.db
