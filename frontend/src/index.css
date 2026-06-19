@@ -181,6 +181,25 @@ body {
   animation: inline-mic-pulse 1.2s ease-in-out infinite;
 }
 
+/* ── Voice conversation ("call") orb ─────────────────────────── */
+.call-orb {
+  transition: background-color 0.25s ease;
+}
+@keyframes call-orb-listening {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.5); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 22px rgba(96,165,250,0); transform: scale(1.05); }
+}
+.call-orb-listening {
+  animation: call-orb-listening 1.6s ease-in-out infinite;
+}
+@keyframes call-orb-speaking {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.55); transform: scale(1.02); }
+  50%      { box-shadow: 0 0 0 14px rgba(96,165,250,0.05); transform: scale(1.08); }
+}
+.call-orb-speaking {
+  animation: call-orb-speaking 0.9s ease-in-out infinite;
+}
+
 /* Chat input bar textarea placeholder */
 .chat-textarea::placeholder {
   color: var(--text-muted);

@@ -6,8 +6,8 @@ import MessageBubble from "./MessageBubble.jsx";
 import ThinkingIndicator from "./ThinkingIndicator.jsx";
 import rocheLogoBlue from "../assets/Roche_Logo_Blue.png";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
-import { Paperclip, Mic, ArrowUp, ChevronRight } from "lucide-react";
-import { speak, stopSpeaking } from "../lib/tts.js";
+import { Paperclip, Mic, ArrowUp, ChevronRight, Phone, PhoneOff, Volume2 } from "lucide-react";
+import { speak, stopSpeaking, ttsSupported } from "../lib/tts.js";
 
 const WELCOME_SHORTCUTS = {
   en: [
@@ -370,6 +370,13 @@ function WelcomeShortcut({ text, onClick }) {
   );
 }
 
+const CALL_LABELS = {
+  en: { title: "Voice conversation", listening: "Listening…", thinking: "Thinking…", speaking: "Speaking…", hint: "Speak naturally — I'll answer out loud. Tap to hang up.", hangup: "End call" },
+  de: { title: "Sprachgespräch", listening: "Hört zu…", thinking: "Denkt nach…", speaking: "Spricht…", hint: "Sprich einfach — ich antworte laut. Tippen zum Auflegen.", hangup: "Auflegen" },
+  fr: { title: "Conversation vocale", listening: "À l'écoute…", thinking: "Réflexion…", speaking: "Réponse…", hint: "Parlez naturellement — je réponds à voix haute. Touchez pour raccrocher.", hangup: "Raccrocher" },
+  it: { title: "Conversazione vocale", listening: "In ascolto…", thinking: "Sto pensando…", speaking: "Sto parlando…", hint: "Parla pure — rispondo a voce. Tocca per terminare.", hangup: "Termina" },
+};
+
 export default function ChatWindow({ sessionId = "", language = "en", messages: propMessages, setMessages: propSetMessages, onOpenDocument, darkMode = false, voiceEnabled = true, voiceAutoSend = true, voiceAutoSpeak = false }) {
   const [internalMessages, setInternalMessages] = useState([]);
   const messages = propMessages !== undefined ? propMessages : internalMessages;
@@ -384,6 +391,10 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   const [micHover, setMicHover] = useState(false);
   const [clipHover, setClipHover] = useState(false);
   const [sendHover, setSendHover] = useState(false);
+  // Hands-free conversation ("call") mode.
+  const [callActive, setCallActive] = useState(false);
+  const [callStatus, setCallStatus] = useState("idle"); // listening | thinking | speaking
+  const [callTranscript, setCallTranscript] = useState("");
   const endRef = useRef(null);
   const prevLangRef = useRef(language);
   const isFirstMount = useRef(true);
@@ -391,6 +402,14 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   const recognitionRef = useRef(null);
   const lastQueryRef = useRef("");
   const lastSpokenRef = useRef(null);
+  const callActiveRef = useRef(false);
+  const callRecogRef = useRef(null);
+  const callListenRef = useRef(null);
+  const callHandleRef = useRef(null);
+  // Always-current messages so the conversation loop builds correct history
+  // even across re-renders (avoids stale-closure follow-ups).
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   const hasUserMessage = messages.some((m) => m.role === "user");
   const inputEmpty = !input.trim();
@@ -440,17 +459,25 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   }, []);
 
   // Auto-read the newest assistant answer aloud when the setting is on.
+  // Skipped during a call — call mode handles its own speak→listen loop.
   useEffect(() => {
-    if (!voiceAutoSpeak) return;
+    if (!voiceAutoSpeak || callActive) return;
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant" || last.isError) return;
     if (lastSpokenRef.current === last.id) return;
     lastSpokenRef.current = last.id;
     speak(last.text, language);
-  }, [messages, voiceAutoSpeak, language]);
+  }, [messages, voiceAutoSpeak, language, callActive]);
 
-  // Stop any speech when leaving this chat.
-  useEffect(() => () => stopSpeaking(), []);
+  // Stop speech + any live call when leaving this chat.
+  useEffect(
+    () => () => {
+      callActiveRef.current = false;
+      stopSpeaking();
+      try { callRecogRef.current?.stop?.(); } catch (e) {}
+    },
+    []
+  );
 
   useEffect(() => {
     const ta = textareaRef.current;
@@ -497,7 +524,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
 
   async function send(text) {
     const query = (text ?? input).trim();
-    if (!query || busy) return;
+    if (!query || busy) return null;
     lastQueryRef.current = query;
 
     setMessages((prev) => [
@@ -507,16 +534,20 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
     setInput("");
     setBusy(true);
 
+    let result = null;
     try {
-      const history = buildHistory(messages);
+      const history = buildHistory(messagesRef.current);
       const res = await sendMessage(query, language, sessionId, history);
-      setMessages((prev) => [...prev, buildAssistantMsg(res)]);
+      result = buildAssistantMsg(res);
+      setMessages((prev) => [...prev, result]);
     } catch (err) {
       console.error("Chat error:", err);
-      setMessages((prev) => [...prev, buildErrorMsg(err)]);
+      result = buildErrorMsg(err);
+      setMessages((prev) => [...prev, result]);
     } finally {
       setBusy(false);
     }
+    return result;
   }
 
   async function retryLastQuery() {
@@ -604,6 +635,105 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
       setRecording(false);
     }
   }
+
+  // ── Hands-free conversation ("call") mode ─────────────────────────
+  // Loop: listen (STT) → ask (RAG) → speak the answer (TTS) → listen again,
+  // until the user hangs up. Refs hold the latest fn versions so the loop
+  // never uses stale closures (current language + full history).
+
+  function startCall() {
+    if (callActiveRef.current) return;
+    // Stop any one-shot mic / speech first.
+    try { recognitionRef.current?.stop?.(); } catch (e) {}
+    setRecording(false);
+    stopSpeaking();
+    callActiveRef.current = true;
+    setCallActive(true);
+    setCallTranscript("");
+    callListenRef.current?.();
+  }
+
+  function endCall() {
+    callActiveRef.current = false;
+    setCallActive(false);
+    setCallStatus("idle");
+    setCallTranscript("");
+    try { callRecogRef.current?.stop?.(); } catch (e) {}
+    callRecogRef.current = null;
+    stopSpeaking();
+  }
+
+  function callListen() {
+    if (!callActiveRef.current) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { endCall(); return; }
+    const recognition = new SR();
+    recognition.lang = SPEECH_LANG[language] || "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    let finalTranscript = "";
+    setCallStatus("listening");
+    setCallTranscript("");
+
+    recognition.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalTranscript += chunk;
+        else interim += chunk;
+      }
+      setCallTranscript((finalTranscript + interim).trim());
+    };
+
+    recognition.onerror = (e) => {
+      if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
+        endCall();
+      }
+      // no-speech / aborted are handled by onend (keep listening).
+    };
+
+    recognition.onend = () => {
+      if (!callActiveRef.current) return;
+      const spoken = finalTranscript.trim();
+      if (spoken) {
+        callHandleRef.current?.(spoken);
+      } else {
+        // Heard nothing — keep waiting for the user.
+        setTimeout(() => { if (callActiveRef.current) callListenRef.current?.(); }, 350);
+      }
+    };
+
+    callRecogRef.current = recognition;
+    try {
+      recognition.start();
+    } catch {
+      setTimeout(() => { if (callActiveRef.current) callListenRef.current?.(); }, 500);
+    }
+  }
+
+  async function callHandleTranscript(text) {
+    if (!callActiveRef.current) return;
+    setCallStatus("thinking");
+    setCallTranscript("");
+    const msg = await send(text);
+    if (!callActiveRef.current) return;
+    if (msg && !msg.isError && msg.text) {
+      // Mark as spoken so the auto-read effect doesn't repeat it when the call ends.
+      lastSpokenRef.current = msg.id;
+      setCallStatus("speaking");
+      speak(msg.text, language, {
+        onEnd: () => { if (callActiveRef.current) callListenRef.current?.(); },
+      });
+    } else {
+      // Error or empty answer — resume listening after a short beat.
+      setTimeout(() => { if (callActiveRef.current) callListenRef.current?.(); }, 600);
+    }
+  }
+
+  // Keep the refs pointing at the freshest versions every render.
+  callListenRef.current = callListen;
+  callHandleRef.current = callHandleTranscript;
 
   function openIncident(botMsg, userText) {
     setIncidentContext({
@@ -903,8 +1033,33 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                   <Paperclip size={16} strokeWidth={1.5} color={clipHover ? "var(--accent)" : "var(--text-muted)"} />
                 </button>
 
-                {/* Right: Mic + Send */}
+                {/* Right: Call + Mic + Send */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {speechSupported && voiceEnabled && ttsSupported() && (
+                    <button
+                      type="button"
+                      title="Start a voice conversation"
+                      onClick={startCall}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 44,
+                        height: 44,
+                        borderRadius: "50%",
+                        border: "1.5px solid var(--border-color)",
+                        backgroundColor: "transparent",
+                        cursor: "pointer",
+                        padding: 0,
+                        flexShrink: 0,
+                        transition: "border-color 0.15s",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                    >
+                      <Phone size={16} strokeWidth={1.5} color="var(--text-secondary)" />
+                    </button>
+                  )}
                   {speechSupported && voiceEnabled && (
                     <button
                       type="button"
@@ -976,6 +1131,90 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
           onClose={() => setIncidentContext(null)}
         />
       )}
+
+      {/* Voice conversation ("call") overlay */}
+      {callActive && (() => {
+        const cl = CALL_LABELS[language] || CALL_LABELS.en;
+        const statusText =
+          callStatus === "thinking" ? cl.thinking
+          : callStatus === "speaking" ? cl.speaking
+          : cl.listening;
+        return (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 70,
+              backgroundColor: "rgba(8,15,30,0.72)",
+              backdropFilter: "blur(4px)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 26,
+              padding: 24,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)" }}>
+              {cl.title}
+            </div>
+
+            {/* Animated orb reflecting the current state */}
+            <div
+              className={callStatus === "speaking" ? "call-orb call-orb-speaking" : callStatus === "listening" ? "call-orb call-orb-listening" : "call-orb"}
+              style={{
+                width: 120,
+                height: 120,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: callStatus === "thinking" ? "rgba(255,255,255,0.12)" : "var(--accent)",
+              }}
+            >
+              {callStatus === "speaking"
+                ? <Volume2 size={40} strokeWidth={1.5} color="#FFFFFF" />
+                : callStatus === "thinking"
+                ? <span style={{ display: "flex", gap: 4 }}><span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" /></span>
+                : <Mic size={40} strokeWidth={1.5} color="#FFFFFF" />}
+            </div>
+
+            <div style={{ fontSize: 16, fontWeight: 500, color: "#FFFFFF" }}>{statusText}</div>
+
+            {/* Live transcript of what the user is saying */}
+            <div style={{ minHeight: 24, maxWidth: 520, textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.5 }}>
+              {callTranscript || (callStatus === "listening" ? "" : "")}
+            </div>
+
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", maxWidth: 360, textAlign: "center" }}>{cl.hint}</div>
+
+            {/* Hang up */}
+            <button
+              onClick={endCall}
+              title={cl.hangup}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                marginTop: 6,
+                padding: "12px 22px",
+                borderRadius: 999,
+                border: "none",
+                backgroundColor: "#DC2626",
+                color: "#FFFFFF",
+                fontSize: 14,
+                fontWeight: 600,
+                fontFamily: "inherit",
+                cursor: "pointer",
+              }}
+            >
+              <PhoneOff size={18} strokeWidth={2} />
+              {cl.hangup}
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }
