@@ -5,9 +5,12 @@ import DocumentViewer from "../components/DocumentViewer.jsx";
 import SettingsPanel from "../components/SettingsPanel.jsx";
 import IdentityPicker from "../components/IdentityPicker.jsx";
 import TeamSchedule from "../components/TeamSchedule.jsx";
+import ColleagueInbox from "../components/ColleagueInbox.jsx";
+import { getIdentity } from "../components/IdentityPicker.jsx";
+import { listColleagueRequests } from "../api.js";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { generateTitle } from "../api.js";
-import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2, CalendarDays } from "lucide-react";
+import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2, CalendarDays, Inbox } from "lucide-react";
 
 function genId() {
   return Math.random().toString(36).slice(2, 11);
@@ -31,7 +34,7 @@ const BASE_NAV_STYLE = {
   lineHeight: "1.4",
 };
 
-function NavItem({ icon, label, active, onClick }) {
+function NavItem({ icon, label, active, onClick, badge = 0 }) {
   const [hover, setHover] = useState(false);
   const on = active || hover;
   return (
@@ -48,7 +51,26 @@ function NavItem({ icon, label, active, onClick }) {
       onClick={onClick}
     >
       <span style={{ display: "flex", color: on ? "#FFFFFF" : "rgba(255,255,255,0.9)" }}>{icon}</span>
-      {label}
+      <span style={{ flex: 1 }}>{label}</span>
+      {badge > 0 && (
+        <span
+          style={{
+            minWidth: 18,
+            height: 18,
+            padding: "0 5px",
+            borderRadius: 9,
+            backgroundColor: "#EF4444",
+            color: "#FFFFFF",
+            fontSize: 11,
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
@@ -628,6 +650,19 @@ export default function Chat() {
   // openDoc lifted from DocumentsPanel so ChatWindow can navigate to a specific doc.
   const [openDoc, setOpenDoc] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [inboxCount, setInboxCount] = useState(0);
+
+  // Refresh the inbox badge (open questions for the current identity).
+  useEffect(() => {
+    const me = getIdentity();
+    if (!me) {
+      setInboxCount(0);
+      return;
+    }
+    listColleagueRequests({ member: me, status: "open" })
+      .then((r) => setInboxCount((r || []).length))
+      .catch(() => {});
+  }, [activeTab]);
 
   // Voice + ticket preferences (persisted in this browser).
   const [voiceEnabled, setVoiceEnabledState] = useState(() => {
@@ -884,6 +919,13 @@ export default function Chat() {
               active={activeTab === "schedule"}
               onClick={() => setActiveTab("schedule")}
             />
+            <NavItem
+              icon={<Inbox size={16} strokeWidth={1.5} />}
+              label="Inbox"
+              active={activeTab === "inbox"}
+              onClick={() => setActiveTab("inbox")}
+              badge={inboxCount}
+            />
           </nav>
 
           {/* Chat history list — scrollable, fills remaining space */}
@@ -968,7 +1010,7 @@ export default function Chat() {
               <Menu size={16} strokeWidth={1.5} />
             </TopbarBtn>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-              {activeTab === "documents" ? "Documents" : activeTab === "schedule" ? "Team schedule" : "Chat"}
+              {activeTab === "documents" ? "Documents" : activeTab === "schedule" ? "Team schedule" : activeTab === "inbox" ? "Inbox" : "Chat"}
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", paddingRight: 20 }}>
@@ -986,6 +1028,8 @@ export default function Chat() {
             />
           ) : activeTab === "schedule" ? (
             <TeamSchedule />
+          ) : activeTab === "inbox" ? (
+            <ColleagueInbox />
           ) : (
             <ChatWindow
               key={activeSessionId}

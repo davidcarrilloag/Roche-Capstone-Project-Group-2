@@ -278,6 +278,31 @@ class BookingResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Ask a colleague (expert finder)
+# ---------------------------------------------------------------------------
+class ExpertSuggestRequest(BaseModel):
+    question: str = Field(..., description="The question to route to an expert.")
+
+
+class ExpertOut(BaseModel):
+    name: str
+    role: str = ""
+    team: str = ""
+    expertise: str = ""
+    matched_on: str = Field(default="", description="Which expertise tags matched.")
+
+
+class ColleagueRequestCreate(BaseModel):
+    to_member: str = Field(..., description="Name of the colleague to ask.")
+    question: str = Field(..., description="The question being routed.")
+    from_user: Optional[str] = Field(default=None, description="Who is asking (identity).")
+
+
+class ColleagueRequestAnswer(BaseModel):
+    answer: str = Field(..., description="The colleague's answer.")
+
+
+# ---------------------------------------------------------------------------
 # Misc
 # ---------------------------------------------------------------------------
 class HealthResponse(BaseModel):

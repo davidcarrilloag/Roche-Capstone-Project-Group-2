@@ -3,11 +3,12 @@ import { sendMessage } from "../api.js";
 import FeedbackButton from "./FeedbackButton.jsx";
 import IncidentForm from "./IncidentForm.jsx";
 import BookingForm from "./BookingForm.jsx";
+import AskColleagueModal from "./AskColleagueModal.jsx";
 import MessageBubble from "./MessageBubble.jsx";
 import ThinkingIndicator from "./ThinkingIndicator.jsx";
 import rocheLogoBlue from "../assets/Roche_Logo_Blue.png";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
-import { Paperclip, Mic, ArrowUp, ChevronRight, Phone, PhoneOff, Volume2 } from "lucide-react";
+import { Paperclip, Mic, ArrowUp, ChevronRight, Phone, PhoneOff, Volume2, Users } from "lucide-react";
 import { speak, stopSpeaking, ttsSupported } from "../lib/tts.js";
 
 const WELCOME_SHORTCUTS = {
@@ -46,6 +47,7 @@ const UI_TEXT = {
     bookPrompt: "Want to reserve it? Book the equipment in a few clicks.",
     bookEquipment: "Book equipment",
     bookingLead: "Sure — I can reserve that for you. Just confirm the details below.",
+    askColleague: "Ask a colleague",
   },
   de: {
     labAssistant: "Labor-Assistent",
@@ -55,6 +57,7 @@ const UI_TEXT = {
     bookPrompt: "Möchten Sie es reservieren? Buchen Sie das Gerät mit wenigen Klicks.",
     bookEquipment: "Gerät buchen",
     bookingLead: "Gern — ich kann das für Sie reservieren. Bestätigen Sie einfach die Details unten.",
+    askColleague: "Kollegen fragen",
   },
   fr: {
     labAssistant: "Assistant de laboratoire",
@@ -64,6 +67,7 @@ const UI_TEXT = {
     bookPrompt: "Vous voulez le réserver ? Réservez l'équipement en quelques clics.",
     bookEquipment: "Réserver un équipement",
     bookingLead: "Bien sûr — je peux le réserver pour vous. Confirmez simplement les détails ci-dessous.",
+    askColleague: "Demander à un collègue",
   },
   it: {
     labAssistant: "Assistente di laboratorio",
@@ -73,6 +77,7 @@ const UI_TEXT = {
     bookPrompt: "Vuoi prenotarlo? Prenota l'attrezzatura in pochi clic.",
     bookEquipment: "Prenota attrezzatura",
     bookingLead: "Certo — posso prenotarlo per te. Conferma i dettagli qui sotto.",
+    askColleague: "Chiedi a un collega",
   },
 };
 
@@ -417,6 +422,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   const [busy, setBusy] = useState(false);
   const [incidentContext, setIncidentContext] = useState(null);
   const [bookingContext, setBookingContext] = useState(null);
+  const [askColleagueQ, setAskColleagueQ] = useState(null);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [inputFocused, setInputFocused] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -990,6 +996,32 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                         suggestions={followUps.slice(0, 2)}
                         onSelect={(text) => send(text)}
                       />
+
+                      {/* Escalate to a human — route the question to the right expert */}
+                      {isLastAssistant && prevUserMsg?.text && (
+                        <button
+                          onClick={() => setAskColleagueQ(prevUserMsg.text)}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            marginTop: 12,
+                            padding: "5px 10px",
+                            fontSize: 12,
+                            color: "var(--text-secondary)",
+                            background: "transparent",
+                            border: "1px solid var(--border-color)",
+                            borderRadius: 999,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; e.currentTarget.style.borderColor = "var(--accent)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; e.currentTarget.style.borderColor = "var(--border-color)"; }}
+                        >
+                          <Users size={13} strokeWidth={1.75} />
+                          {(UI_TEXT[language] || UI_TEXT.en).askColleague}
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -1212,6 +1244,11 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
           initialText={bookingContext.initialText}
           onClose={() => setBookingContext(null)}
         />
+      )}
+
+      {/* Ask a colleague modal */}
+      {askColleagueQ && (
+        <AskColleagueModal question={askColleagueQ} onClose={() => setAskColleagueQ(null)} />
       )}
 
       {/* Voice conversation ("call") overlay */}

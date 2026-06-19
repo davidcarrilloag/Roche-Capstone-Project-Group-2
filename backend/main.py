@@ -21,7 +21,7 @@ from fastapi import Query
 
 from config import get_settings
 from models.schemas import HealthResponse
-from routes import bookings, chat, feedback, incidents, members
+from routes import bookings, chat, experts, feedback, incidents, members
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,6 +51,7 @@ app.include_router(feedback.router)
 app.include_router(incidents.router)
 app.include_router(bookings.router)
 app.include_router(members.router)
+app.include_router(experts.router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)

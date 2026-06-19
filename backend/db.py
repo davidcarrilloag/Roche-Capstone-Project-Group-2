@@ -60,6 +60,18 @@ class Booking(SQLModel, table=True):
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
+class ColleagueRequest(SQLModel, table=True):
+    """A question routed from one scientist to a colleague (expert)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    from_user: str = ""
+    to_member: str = ""
+    question: str = ""
+    answer: str = ""
+    status: str = "open"  # open | answered
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+
+
 # ---------------------------------------------------------------------------
 # Synthetic roster — seeded once into an empty database.
 # ---------------------------------------------------------------------------

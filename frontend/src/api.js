@@ -78,6 +78,37 @@ export function listMembers() {
   return request("/members");
 }
 
+// Ask a colleague (expert finder + routed questions)
+export function suggestExperts(question) {
+  return request("/experts/suggest", {
+    method: "POST",
+    body: JSON.stringify({ question }),
+  });
+}
+
+export function createColleagueRequest({ to_member, question, from_user }) {
+  return request("/colleague-requests", {
+    method: "POST",
+    body: JSON.stringify({ to_member, question, from_user }),
+  });
+}
+
+export function listColleagueRequests({ member, from_user, status } = {}) {
+  const qs = new URLSearchParams();
+  if (member) qs.set("member", member);
+  if (from_user) qs.set("from_user", from_user);
+  if (status) qs.set("status", status);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  return request(`/colleague-requests${suffix}`);
+}
+
+export function answerColleagueRequest(id, answer) {
+  return request(`/colleague-requests/${id}/answer`, {
+    method: "POST",
+    body: JSON.stringify({ answer }),
+  });
+}
+
 // Equipment booking
 export function listEquipment() {
   return request("/equipment");

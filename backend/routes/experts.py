@@ -1,0 +1,83 @@
+"""
+Ask a colleague — expert finder + routed questions.
+
+POST /experts/suggest          best-matching colleague(s) for a question
+POST /colleague-requests       send a question to a colleague (persisted)
+GET  /colleague-requests       inbox: open questions for a member
+POST /colleague-requests/{id}/answer   the colleague answers
+
+Owner: Backend.
+"""
+
+from __future__ import annotations
+
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+
+from db import ColleagueRequest, get_session
+from models.schemas import (
+    ColleagueRequestAnswer,
+    ColleagueRequestCreate,
+    ExpertOut,
+    ExpertSuggestRequest,
+)
+from services.experts import suggest_experts
+
+router = APIRouter(tags=["experts"])
+
+
+@router.post("/experts/suggest", response_model=List[ExpertOut])
+def experts_suggest(request: ExpertSuggestRequest) -> List[ExpertOut]:
+    return [ExpertOut(**e) for e in suggest_experts(request.question)]
+
+
+@router.post("/colleague-requests", response_model=ColleagueRequest)
+def create_request(
+    request: ColleagueRequestCreate,
+    session: Session = Depends(get_session),
+) -> ColleagueRequest:
+    req = ColleagueRequest(
+        from_user=request.from_user or "",
+        to_member=request.to_member,
+        question=request.question,
+    )
+    session.add(req)
+    session.commit()
+    session.refresh(req)
+    return req
+
+
+@router.get("/colleague-requests", response_model=List[ColleagueRequest])
+def list_requests(
+    member: Optional[str] = None,
+    from_user: Optional[str] = None,
+    status: Optional[str] = None,
+    session: Session = Depends(get_session),
+) -> List[ColleagueRequest]:
+    stmt = select(ColleagueRequest)
+    if member:
+        stmt = stmt.where(ColleagueRequest.to_member == member)
+    if from_user:
+        stmt = stmt.where(ColleagueRequest.from_user == from_user)
+    if status:
+        stmt = stmt.where(ColleagueRequest.status == status)
+    return session.exec(stmt.order_by(ColleagueRequest.created_at.desc())).all()
+
+
+@router.post("/colleague-requests/{request_id}/answer", response_model=ColleagueRequest)
+def answer_request(
+    request_id: int,
+    body: ColleagueRequestAnswer,
+    session: Session = Depends(get_session),
+) -> ColleagueRequest:
+    req = session.get(ColleagueRequest, request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    req.answer = body.answer
+    req.status = "answered"
+    session.add(req)
+    session.commit()
+    session.refresh(req)
+    return req
