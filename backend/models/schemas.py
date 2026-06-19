@@ -272,6 +272,9 @@ class BookingResponse(BaseModel):
     duration_minutes: int = Field(default=60)
     user: str = Field(default="")
     message: str = Field(default="", description="Human-readable note, e.g. a conflict reason.")
+    calendar_link: str = Field(
+        default="", description="Google Calendar event link when Calendar is configured."
+    )
 
 
 # ---------------------------------------------------------------------------

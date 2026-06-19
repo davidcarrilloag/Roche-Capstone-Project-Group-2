@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends
 
 from models.schemas import BookingRequest, BookingResponse, EquipmentItem
 from services.booking import BookingService, get_booking_service
+from services.calendar import CalendarService, get_calendar_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["bookings"])
@@ -33,6 +34,7 @@ def list_equipment(
 def create_booking(
     request: BookingRequest,
     booking: BookingService = Depends(get_booking_service),
+    calendar: CalendarService = Depends(get_calendar_service),
 ) -> BookingResponse:
     result = booking.create_booking(
         equipment_id=request.equipment_id,
@@ -41,6 +43,26 @@ def create_booking(
         duration_minutes=request.duration_minutes,
         user=request.user,
     )
+
+    # On a confirmed booking, write a real Google Calendar event (no-op if
+    # Calendar isn't configured — the booking still succeeds).
+    if result.get("status") == "confirmed":
+        who = result.get("user") or "a scientist"
+        link = calendar.create_event(
+            summary=f"{result['equipment_name']} — reserved",
+            description=(
+                f"Equipment reservation {result['reference']}\n"
+                f"Booked by: {who}\n"
+                f"Location: {result.get('location', '')}"
+            ),
+            location=result.get("location", ""),
+            date=result["date"],
+            time=result["time"],
+            duration_minutes=result["duration_minutes"],
+        )
+        if link:
+            result["calendar_link"] = link
+
     return BookingResponse(**result)
 
 

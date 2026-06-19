@@ -53,6 +53,10 @@ class Settings:
             "GOOGLE_SERVICE_ACCOUNT_JSON", ""
         )
 
+        # --- Google Calendar (equipment bookings) — same service account ---
+        self.google_calendar_id: str = os.getenv("GOOGLE_CALENDAR_ID", "")
+        self.calendar_timezone: str = os.getenv("CALENDAR_TIMEZONE", "Europe/Madrid")
+
         # --- ServiceNow ---
         self.servicenow_instance_url: str = os.getenv(
             "SERVICENOW_INSTANCE_URL", ""

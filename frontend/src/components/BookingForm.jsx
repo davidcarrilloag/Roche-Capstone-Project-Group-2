@@ -127,13 +127,25 @@ export default function BookingForm({ initialText = "", onClose }) {
               <p className="text-sm text-gray-600 mb-1">
                 {result.date} · {result.time} · {result.duration_minutes} min
               </p>
-              <p className="text-xs text-gray-400 mb-8">{result.location}</p>
-              <button
-                onClick={onClose}
-                className="min-h-[44px] px-10 bg-roche hover:bg-roche-dark text-white rounded-xl text-sm font-medium transition"
-              >
-                Done
-              </button>
+              <p className="text-xs text-gray-400 mb-4">{result.location}</p>
+              {result.calendar_link && (
+                <a
+                  href={result.calendar_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-roche font-medium mb-6 hover:underline"
+                >
+                  📅 View in Google Calendar
+                </a>
+              )}
+              <div>
+                <button
+                  onClick={onClose}
+                  className="min-h-[44px] px-10 bg-roche hover:bg-roche-dark text-white rounded-xl text-sm font-medium transition"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           ) : (
             <form onSubmit={submit} className="p-5 space-y-4">
