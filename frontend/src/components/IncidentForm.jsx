@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createIncident, triageIncident } from "../api.js";
+import { getIdentity } from "./IdentityPicker.jsx";
 
 const CATEGORIES = [
   { value: "software", label: "Software" },
@@ -29,7 +30,7 @@ export default function IncidentForm({
   const [urgency, setUrgency] = useState("");
   const [impact, setImpact] = useState(null); // from triage; sent with the ticket
   const [caller, setCaller] = useState(() => {
-    try { return localStorage.getItem("ticketCaller") || ""; } catch { return ""; }
+    try { return getIdentity() || localStorage.getItem("ticketCaller") || ""; } catch { return ""; }
   });
   const [suggestion, setSuggestion] = useState(null); // { priority_label }
   const [triaging, setTriaging] = useState(false);

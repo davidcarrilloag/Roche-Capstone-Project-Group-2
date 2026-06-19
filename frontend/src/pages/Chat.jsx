@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import ChatWindow from "../components/ChatWindow.jsx";
 import DocumentViewer from "../components/DocumentViewer.jsx";
 import SettingsPanel from "../components/SettingsPanel.jsx";
+import IdentityPicker from "../components/IdentityPicker.jsx";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { generateTitle } from "../api.js";
 import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2 } from "lucide-react";
@@ -916,6 +917,7 @@ export default function Chat() {
           {/* Bottom nav */}
           <div style={{ flexShrink: 0 }}>
             <div style={{ height: 1, backgroundColor: "rgba(255,255,255,0.1)", margin: "8px 0" }} />
+            <IdentityPicker />
             <LanguageSelector language={language} onSelectLanguage={setLanguage} />
             <SidebarBottomBtn
               icon={<Settings size={15} strokeWidth={1.5} />}

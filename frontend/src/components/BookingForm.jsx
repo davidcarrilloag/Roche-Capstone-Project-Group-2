@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { listEquipment, createBooking } from "../api.js";
+import { getIdentity } from "./IdentityPicker.jsx";
 
 const fieldClass =
   "w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-roche focus:border-transparent";
@@ -103,7 +104,7 @@ export default function BookingForm({ initialText = "", onClose }) {
   const [time, setTime] = useState(TIMES.includes(parsed.time) ? parsed.time : "09:00");
   const [duration, setDuration] = useState(60);
   const [user, setUser] = useState(() => {
-    try { return localStorage.getItem("ticketCaller") || ""; } catch { return ""; }
+    try { return getIdentity() || localStorage.getItem("ticketCaller") || ""; } catch { return ""; }
   });
   const [result, setResult] = useState(null); // BookingResponse
   const [busy, setBusy] = useState(false);

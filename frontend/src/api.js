@@ -73,6 +73,11 @@ export function generateTitle(messages) {
   });
 }
 
+// Lab members (synthetic identity roster)
+export function listMembers() {
+  return request("/members");
+}
+
 // Equipment booking
 export function listEquipment() {
   return request("/equipment");
