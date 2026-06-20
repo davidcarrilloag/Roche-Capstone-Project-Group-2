@@ -144,7 +144,11 @@ export default function TeamDirectory() {
   const me = getIdentity();
 
   useEffect(() => {
-    membersDirectory().then((m) => setMembers(m || [])).catch(() => {}).finally(() => setLoading(false));
+    membersDirectory()
+      // People = scientists only; the IT team lives in the IT Support tab.
+      .then((m) => setMembers((m || []).filter((x) => !(x.team || "").startsWith("IT"))))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   if (selected) {

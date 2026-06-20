@@ -21,8 +21,8 @@ function tomorrowISO() {
 const fieldClass =
   "w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-roche focus:border-transparent";
 
-export default function AskColleagueModal({ question = "", onClose, lockedMember = "" }) {
-  const [mode, setMode] = useState("ask"); // ask | meet
+export default function AskColleagueModal({ question = "", onClose, lockedMember = "", initialMode = "ask" }) {
+  const [mode, setMode] = useState(initialMode); // ask | meet
   const [experts, setExperts] = useState([]);
   const [selected, setSelected] = useState(lockedMember || "");
   const [text, setText] = useState(question);

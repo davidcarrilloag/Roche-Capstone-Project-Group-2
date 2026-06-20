@@ -8,11 +8,12 @@ import TeamSchedule from "../components/TeamSchedule.jsx";
 import ColleagueInbox from "../components/ColleagueInbox.jsx";
 import TeamDirectory from "../components/TeamDirectory.jsx";
 import AnnouncementsBar from "../components/AnnouncementsBar.jsx";
+import ITSupport from "../components/ITSupport.jsx";
 import { getIdentity } from "../components/IdentityPicker.jsx";
 import { listColleagueRequests } from "../api.js";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { generateTitle } from "../api.js";
-import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2, CalendarDays, Inbox, Users } from "lucide-react";
+import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2, CalendarDays, Inbox, Users, Headset } from "lucide-react";
 
 function genId() {
   return Math.random().toString(36).slice(2, 11);
@@ -928,6 +929,12 @@ export default function Chat() {
               onClick={() => setActiveTab("people")}
             />
             <NavItem
+              icon={<Headset size={16} strokeWidth={1.5} />}
+              label="IT Support"
+              active={activeTab === "it"}
+              onClick={() => setActiveTab("it")}
+            />
+            <NavItem
               icon={<Inbox size={16} strokeWidth={1.5} />}
               label="Inbox"
               active={activeTab === "inbox"}
@@ -1018,7 +1025,7 @@ export default function Chat() {
               <Menu size={16} strokeWidth={1.5} />
             </TopbarBtn>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-              {activeTab === "documents" ? "Documents" : activeTab === "schedule" ? "Team schedule" : activeTab === "people" ? "People" : activeTab === "inbox" ? "Inbox" : "Chat"}
+              {activeTab === "documents" ? "Documents" : activeTab === "schedule" ? "Team schedule" : activeTab === "people" ? "People" : activeTab === "it" ? "IT Support" : activeTab === "inbox" ? "Inbox" : "Chat"}
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", paddingRight: 20 }}>
@@ -1040,6 +1047,8 @@ export default function Chat() {
             <TeamSchedule />
           ) : activeTab === "people" ? (
             <TeamDirectory />
+          ) : activeTab === "it" ? (
+            <ITSupport />
           ) : activeTab === "inbox" ? (
             <ColleagueInbox />
           ) : (
