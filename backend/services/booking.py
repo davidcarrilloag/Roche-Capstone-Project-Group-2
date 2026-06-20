@@ -22,16 +22,25 @@ from db import Booking, engine
 
 logger = logging.getLogger(__name__)
 
-# Synthetic but realistic lab equipment (static catalog, not in the DB).
+# Synthetic but realistic bookable resources (static catalog, not in the DB).
+# `type` is "equipment" or "room" — rooms/facilities are booked the same way.
 EQUIPMENT: List[dict] = [
-    {"id": "centrifuge-01", "name": "Centrifuge (Eppendorf 5424R)", "category": "Sample prep", "location": "Lab A-101"},
-    {"id": "freezer-80", "name": "-80 °C Freezer (Unit B-3)", "category": "Cold storage", "location": "Cold Room B-012"},
-    {"id": "thermocycler-01", "name": "PCR Thermocycler (Bio-Rad C1000)", "category": "Molecular biology", "location": "Lab A-103"},
-    {"id": "confocal-01", "name": "Confocal Microscope (Zeiss LSM 900)", "category": "Imaging", "location": "Imaging Suite C-201"},
-    {"id": "platereader-01", "name": "Plate Reader (Tecan Spark)", "category": "Analytics", "location": "Lab A-105"},
-    {"id": "fumehood-02", "name": "Fume Hood #2", "category": "Chemistry", "location": "Lab A-101"},
-    {"id": "autoclave-01", "name": "Autoclave (Tuttnauer 3870)", "category": "Sterilization", "location": "Sterilization Room A-010"},
-    {"id": "massspec-01", "name": "Mass Spectrometer (Thermo Q Exactive)", "category": "Analytics", "location": "Analytics Lab C-110"},
+    # --- Equipment ---
+    {"id": "centrifuge-01", "name": "Centrifuge (Eppendorf 5424R)", "category": "Sample prep", "location": "Lab A-101", "type": "equipment"},
+    {"id": "freezer-80", "name": "-80 °C Freezer (Unit B-3)", "category": "Cold storage", "location": "Cold Room B-012", "type": "equipment"},
+    {"id": "thermocycler-01", "name": "PCR Thermocycler (Bio-Rad C1000)", "category": "Molecular biology", "location": "Lab A-103", "type": "equipment"},
+    {"id": "confocal-01", "name": "Confocal Microscope (Zeiss LSM 900)", "category": "Imaging", "location": "Imaging Suite C-201", "type": "equipment"},
+    {"id": "platereader-01", "name": "Plate Reader (Tecan Spark)", "category": "Analytics", "location": "Lab A-105", "type": "equipment"},
+    {"id": "fumehood-02", "name": "Fume Hood #2", "category": "Chemistry", "location": "Lab A-101", "type": "equipment"},
+    {"id": "autoclave-01", "name": "Autoclave (Tuttnauer 3870)", "category": "Sterilization", "location": "Sterilization Room A-010", "type": "equipment"},
+    {"id": "massspec-01", "name": "Mass Spectrometer (Thermo Q Exactive)", "category": "Analytics", "location": "Analytics Lab C-110", "type": "equipment"},
+    # --- Rooms & facilities (managed like resources on the shared calendar) ---
+    {"id": "room-bsl2-c105", "name": "BSL-2 Lab C-105", "category": "Biosafety lab", "location": "Building C, 1st floor", "type": "room"},
+    {"id": "room-cellculture-a108", "name": "Cell Culture Suite A-108", "category": "Lab suite", "location": "Building A, 1st floor", "type": "room"},
+    {"id": "room-tissue-a112", "name": "Tissue Culture Room A-112", "category": "Lab room", "location": "Building A, 1st floor", "type": "room"},
+    {"id": "room-meeting-a200", "name": "Meeting Room A-200", "category": "Meeting room", "location": "Building A, 2nd floor", "type": "room"},
+    {"id": "room-conference-g01", "name": "Conference Room G-01", "category": "Conference room", "location": "Ground floor", "type": "room"},
+    {"id": "room-darkroom-c118", "name": "Imaging Dark Room C-118", "category": "Imaging facility", "location": "Building C, 1st floor", "type": "room"},
 ]
 
 _EQUIPMENT_BY_ID = {e["id"]: e for e in EQUIPMENT}

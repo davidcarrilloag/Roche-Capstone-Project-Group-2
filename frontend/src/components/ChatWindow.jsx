@@ -146,7 +146,9 @@ function suggestsTicket(text) {
 function suggestsBooking(text) {
   const t = (text || "").toLowerCase();
   const verbs = ["book", "reserve", "reservation", "schedule the", "buchen", "reservieren", "réserver", "réservation", "prenota", "prenotare", "riservare"];
-  const things = ["equipment", "centrifuge", "freezer", "pcr", "thermocycler", "microscope", "confocal", "plate reader", "fume hood", "autoclave", "mass spec", "spectrometer", "machine", "instrument", "gerät", "équipement", "attrezzatura", "microscopio", "centrifug"];
+  const things = ["equipment", "centrifuge", "freezer", "pcr", "thermocycler", "microscope", "confocal", "plate reader", "fume hood", "autoclave", "mass spec", "spectrometer", "machine", "instrument", "gerät", "équipement", "attrezzatura", "microscopio", "centrifug",
+    // rooms & facilities
+    "room", "suite", "bsl-2", "bsl2", "biosafety", "conference", "meeting room", "tissue culture", "cell culture", "dark room", "darkroom", "facility", "raum", "salle", "sala", "stanza"];
   const hasVerb = verbs.some((w) => t.includes(w));
   const hasThing = things.some((w) => t.includes(w));
   return hasVerb && hasThing;

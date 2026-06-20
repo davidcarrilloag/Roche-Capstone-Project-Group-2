@@ -15,7 +15,7 @@ const DURATIONS = [
   { value: 120, label: "2 hours" },
 ];
 
-// Keyword → equipment id, used to pre-select from the chat request.
+// Keyword → resource id, used to pre-select from the chat request.
 const KEYWORDS = [
   [["centrifuge"], "centrifuge-01"],
   [["freezer", "-80", "cold storage"], "freezer-80"],
@@ -25,6 +25,13 @@ const KEYWORDS = [
   [["fume hood", "fumehood"], "fumehood-02"],
   [["autoclave"], "autoclave-01"],
   [["mass spec", "spectrometer"], "massspec-01"],
+  // Rooms & facilities
+  [["bsl-2", "bsl2", "biosafety"], "room-bsl2-c105"],
+  [["cell culture suite", "culture suite"], "room-cellculture-a108"],
+  [["tissue culture", "tissue room"], "room-tissue-a112"],
+  [["meeting room"], "room-meeting-a200"],
+  [["conference room", "conference"], "room-conference-g01"],
+  [["dark room", "darkroom", "imaging room"], "room-darkroom-c118"],
 ];
 
 // Local (not UTC) ISO date so we never shift a day across timezones.
@@ -154,7 +161,7 @@ export default function BookingForm({ initialText = "", onClose }) {
       <div className="incident-surface bg-white w-full sm:rounded-2xl sm:max-w-md shadow-2xl flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
-          <h2 className="text-base font-semibold text-gray-900">Book equipment</h2>
+          <h2 className="text-base font-semibold text-gray-900">Reserve a resource</h2>
           <button
             onClick={onClose}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition"
@@ -208,7 +215,7 @@ export default function BookingForm({ initialText = "", onClose }) {
             <form onSubmit={submit} className="p-5 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Equipment <span className="text-red-400">*</span>
+                  Equipment or room <span className="text-red-400">*</span>
                 </label>
                 <select
                   required
@@ -217,11 +224,20 @@ export default function BookingForm({ initialText = "", onClose }) {
                   className={fieldClass}
                 >
                   {equipment.length === 0 && <option value="">Loading…</option>}
-                  {equipment.map((eq) => (
-                    <option key={eq.id} value={eq.id}>
-                      {eq.name} — {eq.location}
-                    </option>
-                  ))}
+                  <optgroup label="Equipment">
+                    {equipment.filter((eq) => eq.type !== "room").map((eq) => (
+                      <option key={eq.id} value={eq.id}>
+                        {eq.name} — {eq.location}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Rooms & facilities">
+                    {equipment.filter((eq) => eq.type === "room").map((eq) => (
+                      <option key={eq.id} value={eq.id}>
+                        {eq.name} — {eq.location}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 

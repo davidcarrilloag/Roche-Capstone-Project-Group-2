@@ -241,12 +241,13 @@ class TitleResponse(BaseModel):
 # Equipment booking
 # ---------------------------------------------------------------------------
 class EquipmentItem(BaseModel):
-    """A bookable piece of lab equipment."""
+    """A bookable resource — equipment or a room/facility."""
 
-    id: str = Field(..., description="Stable equipment id, e.g. 'centrifuge-01'.")
+    id: str = Field(..., description="Stable resource id, e.g. 'centrifuge-01'.")
     name: str = Field(..., description="Display name, e.g. 'Centrifuge (Eppendorf 5424R)'.")
     category: str = Field(default="", description="Grouping, e.g. 'Sample prep'.")
     location: str = Field(default="", description="Room/lab where it lives.")
+    type: str = Field(default="equipment", description="'equipment' or 'room'.")
 
 
 class BookingRequest(BaseModel):
