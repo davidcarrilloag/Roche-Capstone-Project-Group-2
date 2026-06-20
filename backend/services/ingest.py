@@ -116,6 +116,60 @@ def get_vectorstore(settings: Optional[Settings] = None):
     )
 
 
+def add_community_answer(
+    question: str,
+    answer: str,
+    author: str = "",
+    language: str = "en",
+    doc_id: Optional[str] = None,
+    settings: Optional[Settings] = None,
+) -> Optional[str]:
+    """
+    Index a colleague's answer into the RAG so the assistant "learns" it.
+
+    This is the living knowledge base: when the SOPs don't cover something and a
+    human expert answers, that Q&A becomes retrievable, so the next person asking
+    a similar question gets the answer (cited as a community answer).
+
+    Returns the doc_id added, or None if RAG isn't configured.
+    """
+    import datetime
+
+    settings = settings or get_settings()
+    if not settings.has_google:
+        return None
+
+    from langchain_core.documents import Document
+
+    doc_id = doc_id or f"COMMUNITY-{int(datetime.datetime.utcnow().timestamp())}"
+    short = question.strip().replace("\n", " ")
+    title = "Community answer — " + (short[:60] + ("…" if len(short) > 60 else ""))
+    # Lead with the question so similar future questions retrieve this entry.
+    body = (
+        f"Question: {question}\n\n"
+        f"Answer (provided by {author or 'a colleague'}): {answer}"
+    )
+    meta = {
+        "doc_id": doc_id,
+        "title": title,
+        "version": "community",
+        "date": datetime.date.today().isoformat(),
+        "language": language,
+        "answered_by": author or "",
+        "origin": "community",
+        "chunk_index": 0,
+        "source_file": "community",
+    }
+
+    store = get_vectorstore(settings)
+    existing = store.get(where={"doc_id": doc_id})
+    if existing["ids"]:
+        store.delete(ids=existing["ids"])
+    store.add_documents([Document(page_content=body, metadata=meta)])
+    logger.info("Indexed community answer %s (by %s)", doc_id, author or "-")
+    return doc_id
+
+
 def ingest(settings: Optional[Settings] = None, sync_drive: bool = False) -> int:
     """
     Build/refresh the vector index. Returns the number of chunks ingested.

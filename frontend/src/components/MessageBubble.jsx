@@ -156,21 +156,39 @@ function SourceItem({ source, onOpenDocument }) {
         >
           {source.title}
         </span>
-        {source.version && (
+        {source.version === "community" ? (
           <span
             style={{
               fontSize: 10,
-              fontWeight: 500,
-              color: "var(--text-muted)",
-              backgroundColor: "var(--border-subtle)",
-              padding: "0px 5px",
+              fontWeight: 600,
+              color: "var(--accent)",
+              backgroundColor: "var(--accent-tint)",
+              border: "1px solid var(--accent-tint-border)",
+              padding: "0px 6px",
               borderRadius: 3,
               letterSpacing: "0.02em",
               flexShrink: 0,
             }}
           >
-            {source.version}
+            👥 Community knowledge
           </span>
+        ) : (
+          source.version && (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 500,
+                color: "var(--text-muted)",
+                backgroundColor: "var(--border-subtle)",
+                padding: "0px 5px",
+                borderRadius: 3,
+                letterSpacing: "0.02em",
+                flexShrink: 0,
+              }}
+            >
+              {source.version}
+            </span>
+          )
         )}
         {source.date && (
           <span style={{ fontSize: 10, color: "var(--text-muted)", flexShrink: 0 }}>

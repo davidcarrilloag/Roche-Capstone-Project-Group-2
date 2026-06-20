@@ -11,10 +11,13 @@ Owner: Backend.
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
+
+logger = logging.getLogger(__name__)
 
 from db import ColleagueRequest, get_session
 from models.schemas import (
@@ -110,4 +113,19 @@ def answer_request(
     session.add(req)
     session.commit()
     session.refresh(req)
+
+    # Living knowledge base: index this Q&A so the assistant learns it for next
+    # time (best-effort — never fail the reply if the RAG isn't available).
+    try:
+        from services.ingest import add_community_answer
+
+        add_community_answer(
+            question=req.question,
+            answer=req.answer,
+            author=req.to_member,
+            doc_id=f"COMMUNITY-{req.id}",
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Could not index community answer: %s", exc)
+
     return req
