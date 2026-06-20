@@ -78,6 +78,14 @@ export function listMembers() {
   return request("/members");
 }
 
+export function membersDirectory() {
+  return request("/members/directory");
+}
+
+export function memberProfile(id) {
+  return request(`/members/${id}/profile`);
+}
+
 // Ask a colleague (expert finder + routed questions)
 export function suggestExperts(question) {
   return request("/experts/suggest", {

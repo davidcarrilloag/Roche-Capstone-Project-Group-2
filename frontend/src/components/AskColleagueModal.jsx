@@ -21,10 +21,10 @@ function tomorrowISO() {
 const fieldClass =
   "w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-roche focus:border-transparent";
 
-export default function AskColleagueModal({ question = "", onClose }) {
+export default function AskColleagueModal({ question = "", onClose, lockedMember = "" }) {
   const [mode, setMode] = useState("ask"); // ask | meet
   const [experts, setExperts] = useState([]);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(lockedMember || "");
   const [text, setText] = useState(question);
   const [date, setDate] = useState(tomorrowISO());
   const [time, setTime] = useState("10:00");
@@ -35,6 +35,11 @@ export default function AskColleagueModal({ question = "", onClose }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (lockedMember) {
+      setSelected(lockedMember);
+      setLoading(false);
+      return;
+    }
     suggestExperts(question)
       .then((list) => {
         setExperts(list || []);
@@ -178,14 +183,19 @@ export default function AskColleagueModal({ question = "", onClose }) {
               )}
 
               <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                {mode === "ask" ? "Suggested colleagues" : "Meet with"}
+                {lockedMember ? "To" : mode === "ask" ? "Suggested colleagues" : "Meet with"}
               </label>
-              {loading && <p className="text-sm text-gray-400 py-2">Finding the right expert…</p>}
-              {!loading && experts.length === 0 && (
+              {lockedMember && (
+                <div className="rounded-xl px-3 py-2.5 text-sm font-medium text-gray-900" style={{ border: "1px solid var(--accent)", backgroundColor: "var(--accent-tint)" }}>
+                  {lockedMember}
+                </div>
+              )}
+              {!lockedMember && loading && <p className="text-sm text-gray-400 py-2">Finding the right expert…</p>}
+              {!lockedMember && !loading && experts.length === 0 && (
                 <p className="text-sm text-gray-500 py-2">No specific expert matched — refine your question or pick anyone.</p>
               )}
               <div className="space-y-2">
-                {experts.map((ex) => {
+                {!lockedMember && experts.map((ex) => {
                   const active = selected === ex.name;
                   return (
                     <button key={ex.name} onClick={() => setSelected(ex.name)} className="w-full text-left rounded-xl px-3 py-2.5 transition flex items-center gap-3" style={{ border: `1px solid ${active ? "var(--accent)" : "var(--border-color)"}`, backgroundColor: active ? "var(--accent-tint)" : "transparent" }}>
