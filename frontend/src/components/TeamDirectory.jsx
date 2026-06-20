@@ -188,7 +188,12 @@ export default function TeamDirectory() {
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {m.name} {isMe && <span style={{ fontSize: 11, color: "var(--accent)" }}>(you)</span>}
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{m.role}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+                      {m.role}
+                      {(m.team || "").startsWith("IT") && (
+                        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", color: "#fff", backgroundColor: "#7C3AED", padding: "1px 5px", borderRadius: 3 }}>IT</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{m.team}</div>

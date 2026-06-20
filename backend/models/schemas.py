@@ -327,6 +327,13 @@ class MeetingResponse(BaseModel):
     calendar_link: str = Field(default="")
 
 
+class AnnouncementCreate(BaseModel):
+    title: str = Field(..., description="Short headline.")
+    body: str = Field(default="", description="Details.")
+    category: str = Field(default="info", description="info | maintenance | incident")
+    author: Optional[str] = Field(default=None, description="Who posted it (IT identity).")
+
+
 # ---------------------------------------------------------------------------
 # Misc
 # ---------------------------------------------------------------------------

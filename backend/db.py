@@ -72,10 +72,23 @@ class ColleagueRequest(SQLModel, table=True):
     created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
 
+class Announcement(SQLModel, table=True):
+    """A broadcast from IT to scientists (maintenance, known issue, tip)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    author: str = ""
+    title: str = ""
+    body: str = ""
+    category: str = "info"  # info | maintenance | incident
+    active: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+
+
 # ---------------------------------------------------------------------------
 # Synthetic roster — seeded once into an empty database.
 # ---------------------------------------------------------------------------
 SYNTHETIC_MEMBERS = [
+    # --- Scientists ---
     {"name": "Dr. Elena Fischer", "role": "Senior Scientist", "team": "Oncology", "expertise": "Confocal microscopy, Immunostaining"},
     {"name": "Dr. Marco Rossi", "role": "Research Scientist", "team": "Molecular Biology", "expertise": "PCR, qPCR, Cloning"},
     {"name": "Dr. Sophie Dubois", "role": "Lab Manager", "team": "Analytics", "expertise": "Mass spectrometry, HPLC"},
@@ -84,19 +97,27 @@ SYNTHETIC_MEMBERS = [
     {"name": "Dr. Hiroshi Tanaka", "role": "Senior Scientist", "team": "Imaging", "expertise": "Confocal microscopy, Image analysis"},
     {"name": "Dr. Carla Moreno", "role": "Postdoc", "team": "Genetics", "expertise": "CRISPR, NGS"},
     {"name": "Dr. James Patel", "role": "Lab Technician", "team": "Operations", "expertise": "Equipment maintenance, Inventory"},
+    # --- IT team (team starts with "IT" → flagged as IT in the app) ---
+    {"name": "Tom Becker", "role": "IT Service Desk", "team": "IT Support", "expertise": "Password reset, VPN, Account access, Login issues, Email"},
+    {"name": "Priya Nair", "role": "ELN/LIMS Specialist", "team": "IT Lab Systems", "expertise": "ELN, LIMS, Sample management software, Data export"},
+    {"name": "Diego Fernández", "role": "Instrumentation IT", "team": "IT Lab Systems", "expertise": "Instrument PCs, Software installation, Drivers, Acquisition software"},
+    {"name": "Sarah Kim", "role": "Network & Systems Engineer", "team": "IT Infrastructure", "expertise": "Network, Wi-Fi, VPN, File shares, Remote access, Storage"},
 ]
 
 
 def init_db() -> None:
-    """Create tables and seed the synthetic roster if empty. Safe to call repeatedly."""
+    """Create tables and seed any missing roster members. Safe to call repeatedly."""
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        existing = session.exec(select(LabMember)).first()
-        if existing is None:
-            for m in SYNTHETIC_MEMBERS:
+        existing_names = {m.name for m in session.exec(select(LabMember)).all()}
+        added = 0
+        for m in SYNTHETIC_MEMBERS:
+            if m["name"] not in existing_names:
                 session.add(LabMember(**m))
+                added += 1
+        if added:
             session.commit()
-            logger.info("Seeded %d synthetic lab members.", len(SYNTHETIC_MEMBERS))
+            logger.info("Seeded %d lab member(s).", added)
 
 
 def get_session():

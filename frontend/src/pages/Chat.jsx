@@ -7,6 +7,7 @@ import IdentityPicker from "../components/IdentityPicker.jsx";
 import TeamSchedule from "../components/TeamSchedule.jsx";
 import ColleagueInbox from "../components/ColleagueInbox.jsx";
 import TeamDirectory from "../components/TeamDirectory.jsx";
+import AnnouncementsBar from "../components/AnnouncementsBar.jsx";
 import { getIdentity } from "../components/IdentityPicker.jsx";
 import { listColleagueRequests } from "../api.js";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
@@ -1026,7 +1027,9 @@ export default function Chat() {
         </header>
 
         {/* Content */}
-        <div style={{ flex: 1, overflow: "hidden" }}>
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <AnnouncementsBar />
+          <div style={{ flex: 1, overflow: "hidden" }}>
           {activeTab === "documents" ? (
             <DocumentsPanel
               language={language}
@@ -1053,6 +1056,7 @@ export default function Chat() {
               voiceAutoSpeak={voiceAutoSpeak}
             />
           )}
+          </div>
         </div>
       </main>
 

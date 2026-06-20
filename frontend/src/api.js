@@ -86,6 +86,20 @@ export function memberProfile(id) {
   return request(`/members/${id}/profile`);
 }
 
+// Announcements (IT → scientists broadcast)
+export function listAnnouncements() {
+  return request("/announcements");
+}
+export function createAnnouncement({ title, body, category, author }) {
+  return request("/announcements", {
+    method: "POST",
+    body: JSON.stringify({ title, body, category, author }),
+  });
+}
+export function retireAnnouncement(id) {
+  return request(`/announcements/${id}/retire`, { method: "POST" });
+}
+
 // Ask a colleague (expert finder + routed questions)
 export function suggestExperts(question) {
   return request("/experts/suggest", {
