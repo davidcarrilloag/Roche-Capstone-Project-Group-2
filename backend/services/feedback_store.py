@@ -14,7 +14,7 @@ import json
 import logging
 import threading
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -66,17 +66,47 @@ class FeedbackStore:
             with self._path.open("r", encoding="utf-8") as fh:
                 return [json.loads(line) for line in fh if line.strip()]
 
+    @staticmethod
+    def _within(ts: Optional[str], start: Optional[str], end: Optional[str]) -> bool:
+        """True if the entry timestamp falls inside [start, end] (inclusive).
+
+        start/end are 'YYYY-MM-DD' strings; either may be None (open-ended).
+        """
+        if not ts:
+            return False
+        try:
+            d = datetime.fromisoformat(ts).date()
+        except ValueError:
+            return False
+        if start and d < date.fromisoformat(start):
+            return False
+        if end and d > date.fromisoformat(end):
+            return False
+        return True
+
+    def filtered(self, start: Optional[str] = None,
+                 end: Optional[str] = None) -> list[dict]:
+        """All entries, optionally limited to a date range (inclusive)."""
+        entries = self.all()
+        if not start and not end:
+            return entries
+        return [e for e in entries if self._within(e.get("timestamp"), start, end)]
+
     NEGATIVE_SENTIMENTS = {"negative", "frustrated", "confused"}
 
-    def analytics(self) -> dict:
+    def analytics(self, start: Optional[str] = None,
+                  end: Optional[str] = None) -> dict:
         """Aggregated view for the Dashboard page.
 
         Keeps the original keys (total, by_sentiment, average_rating, recent)
         and adds richer aggregates for the analytics dashboard: weekly rating
         trend, per-topic counts with flagged ratios, language and downvote
         reason breakdowns. All additive — older consumers keep working.
+
+        An optional date range (start/end as 'YYYY-MM-DD') limits which
+        feedback is aggregated, powering the dashboard's period filter.
         """
-        entries = self.all()
+        entries = self.filtered(start, end)
         sentiments = Counter(e["sentiment"] for e in entries)
         ratings = [e["rating"] for e in entries if e.get("rating") is not None]
         avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { downloadReportHtml, downloadEntriesCsv } from "../lib/report.js";
 
 // Feedback analytics dashboard for IT teams.
 // Reads aggregated data from GET /feedback/analytics.
@@ -32,6 +33,25 @@ function fmtDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+// Turn the selected filter into a {start, end} date range (YYYY-MM-DD).
+// "all" -> {} (no limit). "custom" -> whatever dates the user picked.
+function computeRange(range, customStart, customEnd) {
+  if (range === "all") return {};
+  if (range === "custom") {
+    const r = {};
+    if (customStart) r.start = customStart;
+    if (customEnd) r.end = customEnd;
+    return r;
+  }
+  const end = new Date();
+  const start = new Date();
+  if (range === "week") start.setDate(end.getDate() - 7);
+  else if (range === "month") start.setDate(end.getDate() - 30);
+  else if (range === "year") start.setFullYear(end.getFullYear() - 1);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  return { start: iso(start), end: iso(end) };
 }
 
 function StatCard({ label, value, suffix, caption, children }) {
@@ -221,11 +241,15 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [range, setRange] = useState("all"); // all | week | month | year | custom
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
   async function load() {
     setLoading(true);
     try {
-      const res = await api.analytics();
+      const res = await api.analytics(computeRange(range, customStart, customEnd));
       setData(res);
       setError("");
     } catch (e) {
@@ -235,11 +259,24 @@ export default function Dashboard() {
     }
   }
 
+  // Reload whenever the period filter changes (and on first mount).
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, customStart, customEnd]);
 
-  if (loading) {
+  async function downloadCsv() {
+    try {
+      const entries = await api.entries(
+        computeRange(range, customStart, customEnd)
+      );
+      downloadEntriesCsv(entries);
+    } catch (e) {
+      alert("Could not export raw feedback: " + e.message);
+    }
+  }
+
+  if (loading && !data) {
     return <div className="p-8 text-gray-400">Loading analytics…</div>;
   }
 
@@ -287,9 +324,50 @@ export default function Dashboard() {
               <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">
                 {data.demo ? "Demo data" : "Live data"}
               </span>
+              {total > 0 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuOpen((o) => !o)}
+                    title="Download the report or the raw data"
+                    className="text-sm px-3 py-1.5 bg-roche text-white rounded-md hover:opacity-90 flex items-center gap-1.5"
+                  >
+                    ↓ Download
+                    <span className="text-[10px] leading-none">▾</span>
+                  </button>
+                  {menuOpen && (
+                    <>
+                      {/* invisible layer: clicking outside closes the menu */}
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setMenuOpen(false)}
+                      />
+                      <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-20 overflow-hidden">
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            downloadReportHtml(data);
+                          }}
+                          className="block w-full text-left text-sm px-4 py-2.5 text-gray-700 hover:bg-gray-50"
+                        >
+                          Download report (PDF)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            downloadCsv();
+                          }}
+                          className="block w-full text-left text-sm px-4 py-2.5 text-gray-700 hover:bg-gray-50 border-t border-gray-100"
+                        >
+                          Download CSV (raw data)
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
               <button
                 onClick={load}
-                className="text-sm px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50"
+                className="text-sm px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
                 ↻ Refresh
               </button>
@@ -300,6 +378,46 @@ export default function Dashboard() {
               </p>
             )}
           </div>
+        </div>
+
+        <div className="max-w-5xl mx-auto mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-gray-500 mr-1">Period:</span>
+          {[
+            { key: "all", label: "All time" },
+            { key: "week", label: "Last week" },
+            { key: "month", label: "Last month" },
+            { key: "year", label: "Last year" },
+            { key: "custom", label: "Custom" },
+          ].map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setRange(opt.key)}
+              className={`text-sm px-3 py-1 rounded-full border ${
+                range === opt.key
+                  ? "bg-roche text-white border-roche"
+                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+          {range === "custom" && (
+            <div className="flex items-center gap-2 ml-1">
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="text-sm px-2 py-1 border border-gray-300 rounded-md text-gray-700"
+              />
+              <span className="text-gray-400 text-sm">→</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="text-sm px-2 py-1 border border-gray-300 rounded-md text-gray-700"
+              />
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,15 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
+// Build a ?start=...&end=... query string from a {start, end} range (either
+// side optional). Returns "" when no dates are set.
+function rangeQuery({ start, end } = {}) {
+  const u = new URLSearchParams();
+  if (start) u.set("start", start);
+  if (end) u.set("end", end);
+  const s = u.toString();
+  return s ? `?${s}` : "";
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -167,7 +177,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ session_id: sessionId, message, sentiment, rating }),
     }),
-  analytics: () => request("/feedback/analytics"),
+  analytics: (params = {}) => request(`/feedback/analytics${rangeQuery(params)}`),
+  entries: (params = {}) => request(`/feedback/entries${rangeQuery(params)}`),
   createIncident: (sessionId, title, description, category = "general") =>
     request("/incidents", {
       method: "POST",
