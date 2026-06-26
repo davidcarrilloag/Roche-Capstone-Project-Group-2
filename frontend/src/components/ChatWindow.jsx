@@ -4,6 +4,7 @@ import FeedbackButton from "./FeedbackButton.jsx";
 import IncidentForm from "./IncidentForm.jsx";
 import BookingForm from "./BookingForm.jsx";
 import AskColleagueModal from "./AskColleagueModal.jsx";
+import ActivityFeed from "./ActivityFeed.jsx";
 import MessageBubble from "./MessageBubble.jsx";
 import ThinkingIndicator from "./ThinkingIndicator.jsx";
 import rocheLogoBlue from "../assets/Roche_Logo_Blue.png";
@@ -887,6 +888,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                   <WelcomeShortcut key={text} text={text} onClick={() => send(text)} />
                 ))}
               </div>
+              <ActivityFeed />
             </div>
           </div>
         ) : (
