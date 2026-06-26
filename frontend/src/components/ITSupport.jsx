@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { membersDirectory, listAnnouncements, createAnnouncement, retireAnnouncement } from "../api.js";
+import { membersDirectory, listAnnouncements, createAnnouncement, retireAnnouncement, getITQuestions } from "../api.js";
 import { getIdentity } from "./IdentityPicker.jsx";
 import AskColleagueModal from "./AskColleagueModal.jsx";
-import { Headset, MessageSquare, CalendarPlus, Megaphone, Wrench, AlertTriangle, Info, Plus, X, Ticket } from "lucide-react";
+import { Headset, MessageSquare, CalendarPlus, Megaphone, Wrench, AlertTriangle, Info, Plus, X, Ticket, HelpCircle, CheckCircle2 } from "lucide-react";
 
 const COLORS = ["#7C3AED", "#0891B2", "#DB2777", "#EA580C"];
 function initials(name) {
@@ -83,6 +83,7 @@ export default function ITSupport() {
   const [isIT, setIsIT] = useState(false);
   const [composing, setComposing] = useState(false);
   const [ask, setAsk] = useState(null); // { member, mode }
+  const [itQ, setItQ] = useState({ open: [], answered: [], count_open: 0, count_total: 0 });
 
   function loadAnn() {
     listAnnouncements().then((a) => setAnnouncements(a || [])).catch(() => {});
@@ -97,6 +98,7 @@ export default function ITSupport() {
       })
       .catch(() => {});
     loadAnn();
+    getITQuestions().then(setItQ).catch(() => {});
   }, [me]);
 
   async function retire(id) {
@@ -113,6 +115,36 @@ export default function ITSupport() {
         <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "4px 0 24px" }}>
           Reach the IT team without a formal ticket — ask a quick question, book office hours, or check their updates.
         </p>
+
+        {/* What scientists are asking IT (the demand view) */}
+        <div style={{ marginBottom: 28 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px", display: "flex", alignItems: "center", gap: 8 }}>
+            <HelpCircle size={16} color="var(--accent)" /> What scientists are asking IT
+            {itQ.count_open > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", backgroundColor: "#EF4444", borderRadius: 9, padding: "1px 7px" }}>{itQ.count_open} open</span>}
+          </h2>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 10px" }}>
+            Questions routed to the IT team, so you can see what the lab needs ({itQ.count_total} total).
+          </p>
+          {itQ.open.length === 0 && itQ.answered.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Nothing routed to IT yet.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[...itQ.open, ...itQ.answered].slice(0, 6).map((r) => (
+                <div key={r.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border-color)", backgroundColor: "var(--bg-card)" }}>
+                  {r.status === "answered"
+                    ? <CheckCircle2 size={15} color="#16A34A" style={{ flexShrink: 0, marginTop: 2 }} />
+                    : <HelpCircle size={15} color="#CA8A04" style={{ flexShrink: 0, marginTop: 2 }} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.45 }}>{r.question}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 3 }}>
+                      {r.from_user || "A scientist"} → {r.to_member}{r.status === "answered" ? " · answered" : ""}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Announcements */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>

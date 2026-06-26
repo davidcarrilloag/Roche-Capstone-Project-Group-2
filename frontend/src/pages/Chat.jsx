@@ -9,6 +9,7 @@ import ColleagueInbox from "../components/ColleagueInbox.jsx";
 import TeamDirectory from "../components/TeamDirectory.jsx";
 import AnnouncementsBar from "../components/AnnouncementsBar.jsx";
 import ITSupport from "../components/ITSupport.jsx";
+import PerspectiveLanding from "../components/PerspectiveLanding.jsx";
 import { getIdentity } from "../components/IdentityPicker.jsx";
 import { listColleagueRequests } from "../api.js";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
@@ -654,6 +655,9 @@ export default function Chat() {
   const [openDoc, setOpenDoc] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inboxCount, setInboxCount] = useState(0);
+  const [perspectiveOpen, setPerspectiveOpen] = useState(() => {
+    try { return !localStorage.getItem("perspectiveChosen"); } catch { return false; }
+  });
 
   // Refresh the inbox badge (open questions for the current identity).
   useEffect(() => {
@@ -982,6 +986,19 @@ export default function Chat() {
           <div style={{ flexShrink: 0 }}>
             <div style={{ height: 1, backgroundColor: "rgba(255,255,255,0.1)", margin: "8px 0" }} />
             <IdentityPicker />
+            <button
+              onClick={() => setPerspectiveOpen(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6, width: "100%",
+                padding: "4px 10px 8px 12px", border: "none", background: "none",
+                cursor: "pointer", color: "rgba(255,255,255,0.55)", fontSize: 11.5,
+                fontFamily: "inherit", textAlign: "left",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.55)")}
+            >
+              <RotateCcw size={12} strokeWidth={1.75} /> Switch perspective
+            </button>
             <LanguageSelector language={language} onSelectLanguage={setLanguage} />
             <SidebarBottomBtn
               icon={<Settings size={15} strokeWidth={1.5} />}
@@ -1068,6 +1085,10 @@ export default function Chat() {
           </div>
         </div>
       </main>
+
+      {perspectiveOpen && (
+        <PerspectiveLanding onClose={() => setPerspectiveOpen(false)} />
+      )}
 
       {settingsOpen && (
         <SettingsPanel

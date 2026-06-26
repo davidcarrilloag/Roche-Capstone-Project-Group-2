@@ -58,6 +58,32 @@ def members_directory(session: Session = Depends(get_session)) -> List[dict]:
     return out
 
 
+@router.get("/it/questions")
+def it_questions(session: Session = Depends(get_session)) -> dict:
+    """Everything scientists have routed to the IT team — so IT sees the demand."""
+    it_names = {m.name for m in session.exec(select(LabMember)).all() if (m.team or "").startswith("IT")}
+    reqs = session.exec(
+        select(ColleagueRequest).order_by(ColleagueRequest.created_at.desc())
+    ).all()
+    to_it = [r for r in reqs if r.to_member in it_names]
+
+    def ser(r):
+        return {
+            "id": r.id, "from_user": r.from_user, "to_member": r.to_member,
+            "question": r.question, "answer": r.answer, "status": r.status,
+            "created_at": r.created_at,
+        }
+
+    open_items = [ser(r) for r in to_it if r.status == "open"]
+    answered_items = [ser(r) for r in to_it if r.status == "answered"]
+    return {
+        "open": open_items,
+        "answered": answered_items,
+        "count_open": len(open_items),
+        "count_total": len(to_it),
+    }
+
+
 @router.get("/members/{member_id}/profile")
 def member_profile(member_id: int, session: Session = Depends(get_session)) -> dict:
     member = session.get(LabMember, member_id)
