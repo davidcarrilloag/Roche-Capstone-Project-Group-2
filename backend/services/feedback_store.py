@@ -158,8 +158,13 @@ class FeedbackStore:
         # --- Languages, downvote reasons, attention counter ---
         by_language = Counter(e["language"] for e in entries if e.get("language"))
         by_reason = Counter(e["reason"] for e in entries if e.get("reason"))
+        # Count one attention item per actual rated downvote. The reason/comment
+        # enrichment is stored as a separate negative entry with no rating, so we
+        # skip those here to avoid counting a single downvote twice.
         needs_attention = sum(
-            1 for e in entries if e.get("sentiment") in self.NEGATIVE_SENTIMENTS
+            1 for e in entries
+            if e.get("sentiment") in self.NEGATIVE_SENTIMENTS
+            and e.get("rating") is not None
         )
 
         return {

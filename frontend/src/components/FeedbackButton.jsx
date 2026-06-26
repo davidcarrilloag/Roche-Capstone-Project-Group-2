@@ -45,24 +45,37 @@ export default function FeedbackButton({ messageId, topic }) {
     }
   }
 
-  function submitReason(reason) {
-    // TODO: wire reason to /feedback once backend contract (reason, comment fields)
-    // is agreed with the analytics team. Until then only log locally.
-    console.log({ messageId, reason, comment: null });
-    setShowPanel(false);
-    setCommentText("");
-    triggerThanks();
+  async function submitReason(reason) {
+    // Enrich the existing downvote with a reason category so the dashboard's
+    // "Downvote reasons" breakdown gets real data. No rating and no topic on
+    // purpose: the thumb already logged the rating + topic, so this keeps the
+    // per-topic counts accurate (one downvote = one topic count).
+    try {
+      await submitFeedback(messageId, null, null, reason, null);
+    } catch (e) {
+      console.error("Feedback reason error:", e);
+    } finally {
+      setShowPanel(false);
+      setCommentText("");
+      triggerThanks();
+    }
   }
 
-  function submitComment() {
+  async function submitComment() {
     const comment = commentText.trim();
     if (!comment) return;
-    // TODO: wire comment to /feedback once backend contract (reason, comment fields)
-    // is agreed with the analytics team. Until then only log locally.
-    console.log({ messageId, reason: null, comment });
-    setShowPanel(false);
-    setCommentText("");
-    triggerThanks();
+    // Same idea as the reason chips: enrich the downvote with free text so it
+    // shows in the recent-feedback feed and feeds the dashboard's language
+    // detection. No rating/topic here for the same reason as above.
+    try {
+      await submitFeedback(messageId, null, comment, null, null);
+    } catch (e) {
+      console.error("Feedback comment error:", e);
+    } finally {
+      setShowPanel(false);
+      setCommentText("");
+      triggerThanks();
+    }
   }
 
   function dismissPanel() {
