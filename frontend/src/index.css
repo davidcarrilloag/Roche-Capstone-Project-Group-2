@@ -249,6 +249,95 @@ body {
   animation: chip-fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Tab panel switch fade */
+@keyframes tab-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tab-fade-in { animation: tab-fade-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ── Modal / overlay entrance & exit animations ───────────────── */
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes overlay-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.overlay-fade-in  { animation: overlay-fade-in  0.2s ease both; }
+.overlay-fade-out { animation: overlay-fade-out 0.18s ease both; }
+
+@keyframes modal-card-in {
+  from { opacity: 0; transform: translateY(32px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes modal-card-out {
+  from { opacity: 1; transform: translateY(0)    scale(1); }
+  to   { opacity: 0; transform: translateY(24px) scale(0.97); }
+}
+.modal-card-in  { animation: modal-card-in  0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.modal-card-out { animation: modal-card-out 0.2s cubic-bezier(0.4, 0, 1, 1)     both; }
+
+/* Right-side drawer (SettingsPanel) */
+@keyframes drawer-slide-in {
+  from { opacity: 0.5; transform: translateX(100%); }
+  to   { opacity: 1;   transform: translateX(0); }
+}
+@keyframes drawer-slide-out {
+  from { opacity: 1;   transform: translateX(0); }
+  to   { opacity: 0;   transform: translateX(100%); }
+}
+.drawer-slide-in  { animation: drawer-slide-in  0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.drawer-slide-out { animation: drawer-slide-out 0.22s cubic-bezier(0.4, 0, 1, 1)    both; }
+
+/* Full-screen fade (PerspectiveLanding, voice call) */
+@keyframes fullscreen-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fullscreen-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.fullscreen-fade-in  { animation: fullscreen-fade-in  0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.fullscreen-fade-out { animation: fullscreen-fade-out 0.2s ease both; }
+
+@keyframes alert-slide-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.alert-slide-down {
+  animation: alert-slide-down 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes alert-fade-out {
+  0%   { opacity: 1; transform: translateX(0) scale(1); }
+  100% { opacity: 0; transform: translateX(6px) scale(0.97); }
+}
+.alert-fade-out {
+  animation: alert-fade-out 0.25s ease-out forwards;
+  pointer-events: none;
+}
+
+.alert-ack-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 5px;
+  transition: color 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.alert-ack-btn:hover {
+  color: #16A34A;
+  background: rgba(22, 163, 74, 0.10);
+}
+
 /* ── IncidentForm dark mode overrides ────────────────────────── */
 [data-theme="dark"] .incident-surface {
   background-color: var(--bg-card);

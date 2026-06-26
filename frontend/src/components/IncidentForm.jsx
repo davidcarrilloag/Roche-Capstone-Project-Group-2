@@ -37,6 +37,12 @@ export default function IncidentForm({
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [closing, setClosing] = useState(false);
+
+  function handleClose() {
+    setClosing(true);
+    setTimeout(onClose, 200);
+  }
 
   async function runTriage(desc, ttl) {
     if (!desc || !desc.trim()) return;
@@ -83,22 +89,23 @@ export default function IncidentForm({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 ${closing ? "overlay-fade-out" : "overlay-fade-in"}`}
+      onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
-      <div className="incident-surface bg-white w-full sm:rounded-2xl sm:max-w-md shadow-2xl flex flex-col max-h-[92vh]">
+      <div className={`incident-surface bg-white w-full sm:rounded-2xl sm:max-w-md shadow-2xl flex flex-col max-h-[92vh] ${closing ? "modal-card-out" : "modal-card-in"}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900">
             Create Support Ticket
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition"
             aria-label="Close"
           >
             ✕
           </button>
+
         </div>
 
         {/* Body */}
@@ -139,7 +146,7 @@ export default function IncidentForm({
                   : "Your ticket has been logged in ServiceNow"}
               </p>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="min-h-[44px] px-10 bg-roche hover:bg-roche-dark text-white rounded-xl text-sm font-medium transition"
               >
                 Done

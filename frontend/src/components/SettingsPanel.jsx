@@ -147,13 +147,20 @@ export default function SettingsPanel({
 }) {
   const [caller, setCaller] = useState(ticketCaller || "");
   const [cleared, setCleared] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  function handleClose() {
+    setClosing(true);
+    setTimeout(onClose, 240);
+  }
 
   // Close on Escape.
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
+    const onKey = (e) => { if (e.key === "Escape") handleClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function commitCaller() {
     onSetTicketCaller(caller.trim());
@@ -168,7 +175,8 @@ export default function SettingsPanel({
 
   return (
     <div
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && handleClose()}
+      className={closing ? "overlay-fade-out" : "overlay-fade-in"}
       style={{
         position: "fixed",
         inset: 0,
@@ -179,7 +187,7 @@ export default function SettingsPanel({
       }}
     >
       <div
-        className="doc-slide-in"
+        className={closing ? "drawer-slide-out" : "drawer-slide-in"}
         style={{
           width: "100%",
           maxWidth: 420,
@@ -205,7 +213,7 @@ export default function SettingsPanel({
             Settings
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close"
             style={{
               display: "flex",

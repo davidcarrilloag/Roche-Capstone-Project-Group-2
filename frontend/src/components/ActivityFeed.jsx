@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getActivity } from "../api.js";
-import { CalendarDays, HelpCircle, Lightbulb, Megaphone } from "lucide-react";
+import { HelpCircle, Lightbulb, Megaphone, CalendarDays } from "lucide-react";
 
 const ICONS = {
   booking: { Icon: CalendarDays, color: "#0066CC" },
@@ -20,7 +20,7 @@ function ago(iso) {
   return `${Math.round(h / 24)}d ago`;
 }
 
-export default function ActivityFeed({ title = "Recent team activity" }) {
+export default function ActivityFeed({ title = "Recent team activity", scheduleVariant = false }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
@@ -28,6 +28,31 @@ export default function ActivityFeed({ title = "Recent team activity" }) {
   }, []);
 
   if (items.length === 0) return null;
+
+  if (scheduleVariant) {
+    return (
+      <div style={{ marginTop: 36, textAlign: "left" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 10, opacity: 0.75 }}>
+          {title}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {items.map((e, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", borderRadius: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 400, lineHeight: 1.4 }}>
+                  <span style={{ fontWeight: 500 }}>{e.actor}</span>{" "}{e.text}
+                  {e.detail && (
+                    <span style={{ opacity: 0.7 }}> · {e.detail}</span>
+                  )}
+                </span>
+              </div>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0, opacity: 0.7 }}>{ago(e.ts)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ marginTop: 28, textAlign: "left" }}>

@@ -1053,7 +1053,7 @@ export default function Chat() {
         {/* Content */}
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <AnnouncementsBar />
-          <div style={{ flex: 1, overflow: "hidden" }}>
+          <div key={activeTab} className="tab-fade-in" style={{ flex: 1, overflow: "hidden" }}>
           {activeTab === "documents" ? (
             <DocumentsPanel
               language={language}
@@ -1061,7 +1061,7 @@ export default function Chat() {
               setOpenDoc={setOpenDoc}
             />
           ) : activeTab === "schedule" ? (
-            <TeamSchedule />
+            <TeamSchedule language={language} />
           ) : activeTab === "people" ? (
             <TeamDirectory />
           ) : activeTab === "it" ? (

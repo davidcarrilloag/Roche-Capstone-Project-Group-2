@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { listBookings } from "../api.js";
 import { getIdentity } from "./IdentityPicker.jsx";
+import ActivityFeed from "./ActivityFeed.jsx";
 import { CalendarDays, MapPin, User, RotateCcw, ExternalLink } from "lucide-react";
 
-function fmtDate(iso) {
+const LOCALES = { en: "en-US", de: "de-DE", fr: "fr-FR", it: "it-IT" };
+
+function fmtDate(iso, language) {
   const d = new Date(iso + "T00:00:00");
   if (isNaN(d)) return iso;
-  return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  return d.toLocaleDateString(LOCALES[language] || "en-US", { weekday: "long", day: "numeric", month: "long" });
 }
 
 function endTime(time, duration) {
@@ -15,7 +18,7 @@ function endTime(time, duration) {
   return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export default function TeamSchedule() {
+export default function TeamSchedule({ language = "en" }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -95,7 +98,7 @@ export default function TeamSchedule() {
                 color: "var(--text-muted)", marginBottom: 10, paddingLeft: 2,
               }}
             >
-              {fmtDate(group.date)}
+              {fmtDate(group.date, language)}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {group.items.map((b) => {
@@ -134,7 +137,7 @@ export default function TeamSchedule() {
                     </div>
                     {/* Right: reference + calendar link */}
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 11, fontFamily: "ui-monospace, monospace", color: "var(--text-muted)" }}>{b.reference}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6 }}>{b.reference}</div>
                       {b.calendar_link && (
                         <a
                           href={b.calendar_link}
@@ -152,6 +155,9 @@ export default function TeamSchedule() {
             </div>
           </div>
         ))}
+
+        {/* Recent team activity */}
+        {!loading && !error && <ActivityFeed scheduleVariant />}
       </div>
     </div>
   );

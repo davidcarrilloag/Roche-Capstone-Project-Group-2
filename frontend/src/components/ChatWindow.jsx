@@ -4,7 +4,6 @@ import FeedbackButton from "./FeedbackButton.jsx";
 import IncidentForm from "./IncidentForm.jsx";
 import BookingForm from "./BookingForm.jsx";
 import AskColleagueModal from "./AskColleagueModal.jsx";
-import ActivityFeed from "./ActivityFeed.jsx";
 import MessageBubble from "./MessageBubble.jsx";
 import ThinkingIndicator from "./ThinkingIndicator.jsx";
 import rocheLogoBlue from "../assets/Roche_Logo_Blue.png";
@@ -439,6 +438,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   const [sendHover, setSendHover] = useState(false);
   // Hands-free conversation ("call") mode.
   const [callActive, setCallActive] = useState(false);
+  const [callClosing, setCallClosing] = useState(false);
   const [callStatus, setCallStatus] = useState("idle"); // listening | thinking | speaking
   const [callTranscript, setCallTranscript] = useState("");
   const endRef = useRef(null);
@@ -716,12 +716,16 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
 
   function endCall() {
     callActiveRef.current = false;
-    setCallActive(false);
+    setCallClosing(true);
     setCallStatus("idle");
     setCallTranscript("");
     try { callRecogRef.current?.stop?.(); } catch (e) {}
     callRecogRef.current = null;
     stopSpeaking();
+    setTimeout(() => {
+      setCallActive(false);
+      setCallClosing(false);
+    }, 220);
   }
 
   function callListen() {
@@ -888,7 +892,6 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
                   <WelcomeShortcut key={text} text={text} onClick={() => send(text)} />
                 ))}
               </div>
-              <ActivityFeed />
             </div>
           </div>
         ) : (
@@ -1295,6 +1298,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
           : cl.listening;
         return (
           <div
+            className={callClosing ? "fullscreen-fade-out" : "fullscreen-fade-in"}
             style={{
               position: "fixed",
               inset: 0,

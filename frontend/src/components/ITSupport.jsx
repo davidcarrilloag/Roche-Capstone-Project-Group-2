@@ -121,6 +121,7 @@ export default function ITSupport() {
   const [composing, setComposing] = useState(false);
   const [ask, setAsk] = useState(null); // { member, mode }
   const [itQ, setItQ] = useState({ open: [], answered: [], count_open: 0, count_total: 0 });
+  const [expandedId, setExpandedId] = useState(null);
 
   function loadAnn() {
     listAnnouncements().then((a) => setAnnouncements(a || [])).catch(() => {});
@@ -209,13 +210,24 @@ export default function ITSupport() {
               <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 28 }}>🎉 All caught up — no open questions.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
-                {itQ.open.map((r) => (
-                  <div key={r.id} style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid var(--border-color)", backgroundColor: "var(--bg-card)" }}>
-                    <div style={{ fontSize: 13.5, color: "var(--text-primary)", lineHeight: 1.45 }}>{r.question}</div>
-                    <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 3 }}>from {r.from_user || "a scientist"} · to {r.to_member}</div>
-                    <QueueAnswer req={r} onAnswered={loadITQ} />
-                  </div>
-                ))}
+                {itQ.open.map((r) => {
+                  const isOpen = expandedId === r.id;
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => setExpandedId(isOpen ? null : r.id)}
+                      style={{ padding: "12px 14px", borderRadius: 10, border: `1px solid ${isOpen ? "var(--accent-tint-border)" : "var(--border-color)"}`, backgroundColor: "var(--bg-card)", cursor: "pointer" }}
+                    >
+                      <div style={{ fontSize: 13.5, color: "var(--text-primary)", lineHeight: 1.45 }}>{r.question}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 3 }}>from {r.from_user || "a scientist"} · to {r.to_member}</div>
+                      {isOpen && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <QueueAnswer req={r} onAnswered={() => { loadITQ(); setExpandedId(null); }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 

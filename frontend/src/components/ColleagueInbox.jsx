@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { listColleagueRequests, answerColleagueRequest } from "../api.js";
 import { getIdentity } from "./IdentityPicker.jsx";
-import { Inbox, Send, Clock, CheckCircle2, RotateCcw } from "lucide-react";
+import AskColleagueModal from "./AskColleagueModal.jsx";
+import { Inbox, Send, Clock, CheckCircle2, RotateCcw, MessageSquare } from "lucide-react";
 
 function timeAgo(iso) {
   const d = new Date(iso);
@@ -62,6 +63,7 @@ export default function ColleagueInbox() {
   const [incoming, setIncoming] = useState([]);
   const [sent, setSent] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [askOpen, setAskOpen] = useState(false);
 
   function load() {
     if (!me) {
@@ -138,8 +140,20 @@ export default function ColleagueInbox() {
         {/* Sent */}
         <h2 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 10px" }}>Your questions</h2>
         {!loading && sent.length === 0 && (
-          <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>You haven't asked anyone yet.</p>
+          <div style={{ padding: "20px 16px", borderRadius: 10, border: "1px dashed var(--border-color)", textAlign: "center" }}>
+            <MessageSquare size={20} strokeWidth={1.5} color="var(--text-muted)" style={{ margin: "0 auto 8px", opacity: 0.5, display: "block" }} />
+            <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.5 }}>
+              No questions sent yet. Ask a colleague to get a quick expert answer.
+            </p>
+            <button
+              onClick={() => setAskOpen(true)}
+              style={{ fontSize: 12, padding: "6px 14px", borderRadius: 8, border: "1px solid var(--accent)", background: "var(--accent-tint)", color: "var(--accent)", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
+            >
+              Ask a colleague
+            </button>
+          </div>
         )}
+        {askOpen && <AskColleagueModal onClose={() => { setAskOpen(false); load(); }} />}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {sent.map((r) => (
             <Card key={r.id}>

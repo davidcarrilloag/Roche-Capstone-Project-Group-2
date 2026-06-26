@@ -40,6 +40,7 @@ export default function PerspectiveLanding({ onClose }) {
 
   return (
     <div
+      className="fullscreen-fade-in"
       style={{
         position: "fixed", inset: 0, zIndex: 80,
         background: "linear-gradient(180deg, #001F5B 0%, #003380 100%)",
