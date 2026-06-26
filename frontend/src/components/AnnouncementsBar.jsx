@@ -8,26 +8,17 @@ const CAT = {
   incident: { icon: AlertTriangle, color: "#DC2626", bg: "rgba(220,38,38,0.10)", border: "rgba(220,38,38,0.35)" },
 };
 
-function dismissedIds() {
-  try { return JSON.parse(localStorage.getItem("dismissedAnnouncements") || "[]"); } catch { return []; }
-}
-function dismiss(id) {
-  try {
-    const arr = dismissedIds();
-    if (!arr.includes(id)) localStorage.setItem("dismissedAnnouncements", JSON.stringify([...arr, id]));
-  } catch (e) {}
-}
-
 // Read-only broadcast banner. IT posts/manages announcements in the IT Support tab.
+// Dismissals are per page load (in-memory) so the latest update always shows on reload.
 export default function AnnouncementsBar() {
   const [items, setItems] = useState([]);
-  const [, force] = useState(0);
+  const [dismissed, setDismissed] = useState([]);
 
   useEffect(() => {
     listAnnouncements().then((a) => setItems(a || [])).catch(() => {});
   }, []);
 
-  const visible = items.filter((a) => !dismissedIds().includes(a.id));
+  const visible = items.filter((a) => !dismissed.includes(a.id));
   if (visible.length === 0) return null;
 
   // Only surface the single most recent update here so we don't flood the
@@ -49,7 +40,7 @@ export default function AnnouncementsBar() {
             {more > 0 && <span> · +{more} more in IT Support</span>}
           </div>
         </div>
-        <button onClick={() => { dismiss(a.id); force((n) => n + 1); }} title="Dismiss" style={{ flexShrink: 0, border: "none", background: "none", cursor: "pointer", color: "var(--text-muted)", padding: 2 }}>
+        <button onClick={() => setDismissed((d) => [...d, a.id])} title="Dismiss" style={{ flexShrink: 0, border: "none", background: "none", cursor: "pointer", color: "var(--text-muted)", padding: 2 }}>
           <X size={15} />
         </button>
       </div>
