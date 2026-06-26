@@ -20,7 +20,7 @@ const KEYWORDS = [
   [["centrifuge"], "centrifuge-01"],
   [["freezer", "-80", "cold storage"], "freezer-80"],
   [["pcr", "thermocycler", "thermal cycler"], "thermocycler-01"],
-  [["microscope", "confocal"], "confocal-01"],
+  [["microscop", "confocal"], "confocal-01"],
   [["plate reader", "plate-reader"], "platereader-01"],
   [["fume hood", "fumehood"], "fumehood-02"],
   [["autoclave"], "autoclave-01"],

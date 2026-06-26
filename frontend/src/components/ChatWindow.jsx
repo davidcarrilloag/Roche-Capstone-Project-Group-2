@@ -146,7 +146,9 @@ function suggestsTicket(text) {
 function suggestsBooking(text) {
   const t = (text || "").toLowerCase();
   const verbs = ["book", "reserve", "reservation", "schedule the", "buchen", "reservieren", "réserver", "réservation", "prenota", "prenotare", "riservare"];
-  const things = ["equipment", "centrifuge", "freezer", "pcr", "thermocycler", "microscope", "confocal", "plate reader", "fume hood", "autoclave", "mass spec", "spectrometer", "machine", "instrument", "gerät", "équipement", "attrezzatura", "microscopio", "centrifug",
+  // Use word stems so variants/typos still match (microscope/microscopy/
+  // microscopio -> "microscop"; the RAG is robust to typos, this should be too).
+  const things = ["equipment", "centrifug", "freezer", "pcr", "thermocycler", "microscop", "confocal", "plate reader", "fume hood", "autoclave", "mass spec", "spectrometer", "machine", "instrument", "gerät", "équipement", "attrezzatura", "scanner",
     // rooms & facilities
     "room", "suite", "bsl-2", "bsl2", "biosafety", "conference", "meeting room", "tissue culture", "cell culture", "dark room", "darkroom", "facility", "raum", "salle", "sala", "stanza"];
   const hasVerb = verbs.some((w) => t.includes(w));
