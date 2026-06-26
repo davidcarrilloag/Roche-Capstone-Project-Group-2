@@ -30,25 +30,29 @@ export default function AnnouncementsBar() {
   const visible = items.filter((a) => !dismissedIds().includes(a.id));
   if (visible.length === 0) return null;
 
+  // Only surface the single most recent update here so we don't flood the
+  // start with IT messages. The rest live in the IT Support tab.
+  const a = visible[0];
+  const more = visible.length - 1;
+  const c = CAT[a.category] || CAT.info;
+  const Icon = c.icon;
+
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "12px 20px 0", width: "100%" }}>
-      {visible.map((a) => {
-        const c = CAT[a.category] || CAT.info;
-        const Icon = c.icon;
-        return (
-          <div key={a.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 14px", borderRadius: 10, marginBottom: 8, backgroundColor: c.bg, border: `1px solid ${c.border}` }}>
-            <Icon size={17} color={c.color} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{a.title}</div>
-              {a.body && <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 2, lineHeight: 1.45 }}>{a.body}</div>}
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>📣 {a.author || "IT"}</div>
-            </div>
-            <button onClick={() => { dismiss(a.id); force((n) => n + 1); }} title="Dismiss" style={{ flexShrink: 0, border: "none", background: "none", cursor: "pointer", color: "var(--text-muted)", padding: 2 }}>
-              <X size={15} />
-            </button>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 14px", borderRadius: 10, backgroundColor: c.bg, border: `1px solid ${c.border}` }}>
+        <Icon size={17} color={c.color} style={{ flexShrink: 0, marginTop: 1 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{a.title}</div>
+          {a.body && <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 2, lineHeight: 1.45 }}>{a.body}</div>}
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+            📣 {a.author || "IT"}
+            {more > 0 && <span> · +{more} more in IT Support</span>}
           </div>
-        );
-      })}
+        </div>
+        <button onClick={() => { dismiss(a.id); force((n) => n + 1); }} title="Dismiss" style={{ flexShrink: 0, border: "none", background: "none", cursor: "pointer", color: "var(--text-muted)", padding: 2 }}>
+          <X size={15} />
+        </button>
+      </div>
     </div>
   );
 }
