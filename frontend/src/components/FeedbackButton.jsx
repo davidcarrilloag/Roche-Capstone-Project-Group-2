@@ -46,13 +46,6 @@ export default function FeedbackButton({ messageId, topic }) {
     }
   }
 
-<<<<<<< HEAD
-  function submitReason(reason) {
-    console.log({ messageId, reason, comment: null });
-    setShowPanel(false);
-    setCommentText("");
-    triggerThanks();
-=======
   async function submitReason(reason) {
     // Enrich the existing downvote with a reason category so the dashboard's
     // "Downvote reasons" breakdown gets real data. No rating and no topic on
@@ -67,18 +60,11 @@ export default function FeedbackButton({ messageId, topic }) {
       setCommentText("");
       triggerThanks();
     }
->>>>>>> d31fe78b1248b565fa675f1daf47fc23ffb80dd8
   }
 
   async function submitComment() {
     const comment = commentText.trim();
     if (!comment) return;
-<<<<<<< HEAD
-    console.log({ messageId, reason: null, comment });
-    setShowPanel(false);
-    setCommentText("");
-    triggerThanks();
-=======
     // Same idea as the reason chips: enrich the downvote with free text so it
     // shows in the recent-feedback feed and feeds the dashboard's language
     // detection. No rating/topic here for the same reason as above.
@@ -91,7 +77,6 @@ export default function FeedbackButton({ messageId, topic }) {
       setCommentText("");
       triggerThanks();
     }
->>>>>>> d31fe78b1248b565fa675f1daf47fc23ffb80dd8
   }
 
   function dismissPanel() {
