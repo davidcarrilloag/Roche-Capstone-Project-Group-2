@@ -12,9 +12,10 @@ Safe to run: if a feedback file already exists with data, it is backed up to
 feedback.backup.jsonl before being replaced.
 
 Run (from backend/, with the venv active):
-    python scripts/seed_feedback.py            # load demo data
-    python scripts/seed_feedback.py --clear    # handover: remove demo data,
-                                               # keep real feedback
+    python scripts/seed_feedback.py             # load demo data
+    python scripts/seed_feedback.py --clear     # remove demo data, keep real feedback
+    python scripts/seed_feedback.py --clear-all # handover: wipe EVERYTHING
+                                                # (demo + test), backup first
 """
 
 from __future__ import annotations
@@ -128,6 +129,23 @@ def clear_seeded() -> None:
     print(f"Removed {removed} demo entries; kept {len(real)} real entries.")
 
 
+def clear_all() -> None:
+    """Wipe the whole feedback store (demo + test feedback).
+
+    Use this for the production handover: it backs up the current file to
+    feedback.backup.jsonl first, then leaves an empty store so the real
+    scientists start from a clean slate.
+    """
+    store = FeedbackStore()
+    if not store._path.exists() or store._path.stat().st_size == 0:
+        print("Feedback store is already empty — nothing to clear.")
+        return
+    backup = store._path.with_name("feedback.backup.jsonl")
+    backup.write_bytes(store._path.read_bytes())
+    store._path.write_text("")
+    print(f"Backed up previous data to {backup}; the feedback store is now empty.")
+
+
 def main() -> None:
     store = FeedbackStore()
 
@@ -189,7 +207,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    if "--clear" in sys.argv:
+    if "--clear-all" in sys.argv:
+        clear_all()
+    elif "--clear" in sys.argv:
         clear_seeded()
     else:
         main()
