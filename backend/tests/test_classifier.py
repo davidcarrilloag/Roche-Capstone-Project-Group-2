@@ -4,8 +4,8 @@ Unit tests for IntentClassifier — question vs feedback routing.
 The classifier uses a keyword heuristic, so tests are fully deterministic and
 require no network access or API keys.
 
-Expected result: ~80% accuracy (16/20).
-The four edge cases at the bottom document known heuristic limitations.
+All 20 pass: the four bottom cases were the original heuristic gaps (phrasing
+variants), now handled after the improvements. See docs/test-insights.md.
 """
 from __future__ import annotations
 
@@ -38,11 +38,11 @@ def clf():
     ("I can't find the right form anywhere",          "feedback"),
     ("The app is too slow for daily use",             "feedback"),
     ("I hate this interface",                         "feedback"),
-    # --- Edge cases: heuristic does NOT catch these (expected failures) ---
-    ("I couldn't find any documentation on this",    "feedback"),  # "couldn't find" != "can't find"
-    ("Nothing is working anymore",                    "feedback"),  # no keyword matches → defaults to question
-    ("Broken again after the update",                "feedback"),  # no keyword matches → defaults to question
-    ("The process makes no sense to me",              "feedback"),  # "makes no sense" != "doesn't make sense"
+    # --- Originally-failing edge cases — now handled (phrasing variants added) ---
+    ("I couldn't find any documentation on this",    "feedback"),  # added "couldn't find"
+    ("Nothing is working anymore",                    "feedback"),  # added "nothing is working"
+    ("Broken again after the update",                "feedback"),  # added "broken again"
+    ("The process makes no sense to me",              "feedback"),  # added "makes no sense"
 ], ids=[
     "q_chemical_waste", "q_trainings", "q_cold_storage", "q_order_online",
     "q_building_access", "q_which_sop", "q_gloves", "q_tell_me",

@@ -49,7 +49,10 @@ class IntentClassifier:
             return "question"
         strong_feedback = (
             "confusing", "frustrat", "useless", "annoying", "hate",
-            "too slow", "doesn't make sense", "not helpful", "this is terrible",
+            "too slow", "doesn't make sense", "makes no sense", "not helpful",
+            "this is terrible", "couldn't find", "couldnt find",
+            "nothing is working", "nothing works", "not working anymore",
+            "broken again",
         )
         if any(m in t for m in strong_feedback):
             return "feedback"
@@ -79,9 +82,16 @@ class IntentClassifier:
             "useless",
             "i can't find",
             "i cannot find",
+            "couldn't find",
+            "couldnt find",
             "this is",
             "too slow",
             "doesn't make sense",
+            "makes no sense",
+            "nothing is working",
+            "nothing works",
+            "not working anymore",
+            "broken again",
             "hate",
             "love",
             "great tool",

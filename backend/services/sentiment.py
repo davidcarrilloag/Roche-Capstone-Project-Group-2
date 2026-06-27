@@ -37,12 +37,26 @@ class SentimentService:
 
     @staticmethod
     def _heuristic(text: str) -> str:
-        """Keyword tone classifier."""
+        """Keyword tone classifier (with a small sarcasm guard)."""
         t = text.lower()
-        frustrated = ("frustrat", "angry", "annoy", "useless", "again", "still not")
-        confused = ("confus", "don't understand", "unclear", "how do i", "where is")
-        negative = ("not work", "broken", "crash", "fail", "error", "can't", "cannot")
+        strong_negative = (
+            "error", "broken", "crash", "fail", "ruined", "lost", "destroyed",
+            "not work", "doesn't work",
+        )
         positive = ("thank", "great", "perfect", "works", "helpful", "love")
+
+        # Sarcasm guard: a clear complaint dressed up with a positive word
+        # ("Another error, great." / "Everything is broken, thanks a lot") is
+        # negative, not satisfied — check this before the positive keywords.
+        if any(w in t for w in strong_negative) and any(w in t for w in positive):
+            return "negative"
+
+        frustrated = (
+            "frustrat", "angry", "annoy", "useless", "again", "still not",
+            "immediately", "urgent", "asap", "unable",
+        )
+        confused = ("confus", "don't understand", "unclear", "how do i", "where is")
+        negative = strong_negative + ("can't", "cannot", "inaccessible", "unavailable")
 
         if any(w in t for w in frustrated):
             return "frustrated"

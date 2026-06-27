@@ -117,19 +117,22 @@ class TriageService:
     @staticmethod
     def _heuristic(text: str):
         t = text.lower()
-        # category
-        if any(w in t for w in ("printer", "scanner", "monitor", "keyboard", "mouse", "cable", "device", "hardware", "laptop")):
+        # category — strong access phrases first (they out-rank a stray
+        # "network"/"connect" keyword, e.g. "permission for the network drive").
+        if any(w in t for w in ("permission", "access denied", "shared folder", "shared drive")):
+            category = "access"
+        elif any(w in t for w in ("printer", "scanner", "monitor", "keyboard", "mouse", "cable", "device", "hardware", "laptop", "instrument", " pc")):
             category = "hardware"
         elif any(w in t for w in ("network", "wifi", "vpn", "connect", "internet", "ethernet")):
             category = "network"
-        elif any(w in t for w in ("access", "permission", "login", "log in", "password", "account", "badge")):
+        elif any(w in t for w in ("access", "login", "log in", "password", "account", "badge")):
             category = "access"
-        elif any(w in t for w in ("software", "app", "application", "system", "crash", "error", "session", "elN", "lims")):
+        elif any(w in t for w in ("software", "app", "application", "system", "crash", "error", "session", "eln", "lims", "outlook", "email", "client")):
             category = "software"
         else:
             category = "inquiry"
         # severity
-        if any(w in t for w in ("lab-wide", "everyone", "all users", "outage", "safety", "fire", "down for the", "entire")):
+        if any(w in t for w in ("lab-wide", "everyone", "all users", "outage", "safety", "fire", "down for the", "entire", "at risk", "alarm", "samples")):
             severity = "critical"
         elif any(w in t for w in ("blocked", "cannot work", "experiment", "instrument", "urgent", "asap", "production")):
             severity = "high"

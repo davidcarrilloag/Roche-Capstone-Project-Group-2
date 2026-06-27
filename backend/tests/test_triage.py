@@ -4,9 +4,9 @@ Unit tests for TriageService — incident category and severity classification.
 Uses the keyword heuristic fallback (no Google/Gemini key) so tests are
 fully deterministic and require no network access or API keys.
 
-Expected result: ~80% accuracy (16/20).
-Failures occur where multiple categories share keywords (e.g. network vs
-access) or where severity requires contextual judgement beyond keywords.
+All 20 pass: the four bottom cases were the original gaps (category collisions
+and contextual severity), now handled by priority access phrases, domain
+keywords, and risk-aware severity cues. See docs/test-insights.md.
 """
 from __future__ import annotations
 
@@ -105,26 +105,26 @@ def svc():
         "ELN keeps logging me out, session expires too quickly",
         "software", "low",
     ),
-    # --- Edge cases: heuristic does NOT classify correctly (expected failures) ---
+    # --- Originally-failing edge cases — now handled ---
     (
         "Shared folder access denied",
         "I don't have permission for the network shared drive",
-        "access", "low",      # actual: network/low — "network" keyword matched before "access"
+        "access", "low",      # fixed: "permission"/"shared drive" out-rank the stray "network"
     ),
     (
         "Mass spectrometer connection issue",
         "Instrument not connecting to the PC",
-        "hardware", "high",   # actual: network/high — "connect" triggers network before hardware
+        "hardware", "high",   # fixed: "instrument"/" pc" → hardware (before network)
     ),
     (
         "Email client not opening",
         "Outlook won't launch on my workstation",
-        "software", "low",    # actual: inquiry/low — no software keywords in description
+        "software", "low",    # fixed: added "outlook"/"email"/"client" → software
     ),
     (
         "Cold storage temperature alarm",
         "Temperature alarm triggered in cold room, samples at risk",
-        "inquiry", "critical", # actual: inquiry/low — "safety" keyword missing, risk not detected
+        "inquiry", "critical", # fixed: "alarm"/"at risk"/"samples" → critical
     ),
 ], ids=[
     "printer_low", "wifi_low", "vpn_urgent_high", "password_low",

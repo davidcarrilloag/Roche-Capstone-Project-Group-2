@@ -5,8 +5,9 @@ The service uses a keyword heuristic, so tests are fully deterministic and
 require no network access or API keys.
 
 Labels: positive, negative, neutral, frustrated, confused, satisfied
-Expected result: ~70% accuracy (14/20).
-Edge cases expose sarcasm and implicit frustration the heuristic misses.
+All 20 pass: the six bottom cases were the original gaps (sarcasm + implicit
+frustration), now handled by a sarcasm guard and extra keywords. See
+docs/test-insights.md.
 """
 from __future__ import annotations
 
@@ -36,13 +37,13 @@ def svc():
     ("It worked once but now it fails every time",     "negative"),
     ("Thanks for the quick response!",                 "satisfied"),
     ("The error keeps appearing on every login",       "negative"),
-    # --- Edge cases: heuristic does NOT handle these (expected failures) ---
-    ("Another error, great.",                          "negative"),   # sarcasm: "great" keyword → satisfied
-    ("I need this fixed immediately",                  "frustrated"), # no keywords → neutral
-    ("Everything is broken, thanks a lot",             "negative"),   # "thank" keyword → satisfied
-    ("The lab is inaccessible for everyone right now", "negative"),   # no keywords → neutral
-    ("My samples are all ruined",                      "negative"),   # no keywords → neutral
-    ("I've been unable to get in for 30 minutes",      "frustrated"), # no keywords → neutral
+    # --- Originally-failing edge cases — now handled (sarcasm guard + keywords) ---
+    ("Another error, great.",                          "negative"),   # sarcasm guard (error + great)
+    ("I need this fixed immediately",                  "frustrated"), # added "immediately"
+    ("Everything is broken, thanks a lot",             "negative"),   # sarcasm guard (broken + thanks)
+    ("The lab is inaccessible for everyone right now", "negative"),   # added "inaccessible"
+    ("My samples are all ruined",                      "negative"),   # added "ruined"
+    ("I've been unable to get in for 30 minutes",      "frustrated"), # added "unable"
 ], ids=[
     "satisfied_thanks_works", "frustrated_explicit", "confused_dont_understand",
     "negative_crash", "satisfied_great_helpful", "negative_cannot",
