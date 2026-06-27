@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { listColleagueRequests, answerColleagueRequest } from "../api.js";
 import { getIdentity } from "./IdentityPicker.jsx";
-import { Inbox, Send, Clock, CheckCircle2, RotateCcw } from "lucide-react";
+import AskColleagueModal from "./AskColleagueModal.jsx";
+import { t } from "../i18n.js";
+import { Inbox, Send, Clock, CheckCircle2, RotateCcw, MessageSquare } from "lucide-react";
 
 function timeAgo(iso) {
   const d = new Date(iso);
@@ -9,7 +11,7 @@ function timeAgo(iso) {
   return d.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-function AnswerBox({ req, onAnswered }) {
+function AnswerBox({ req, onAnswered, language = "en" }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit() {
@@ -28,7 +30,7 @@ function AnswerBox({ req, onAnswered }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && submit()}
-        placeholder="Type your reply…"
+        placeholder={t(language, "inbox.replyPlaceholder")}
         style={{
           flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontFamily: "inherit",
           color: "var(--text-primary)", backgroundColor: "var(--bg-input)", border: "1px solid var(--border-color)", outline: "none",
@@ -43,7 +45,7 @@ function AnswerBox({ req, onAnswered }) {
           cursor: "pointer", fontFamily: "inherit", opacity: busy || !text.trim() ? 0.5 : 1,
         }}
       >
-        <Send size={14} /> Reply
+        <Send size={14} /> {t(language, "common.reply")}
       </button>
     </div>
   );
@@ -57,11 +59,12 @@ function Card({ children }) {
   );
 }
 
-export default function ColleagueInbox() {
+export default function ColleagueInbox({ language = "en" }) {
   const me = getIdentity();
   const [incoming, setIncoming] = useState([]);
   const [sent, setSent] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [askOpen, setAskOpen] = useState(false);
 
   function load() {
     if (!me) {
@@ -92,28 +95,28 @@ export default function ColleagueInbox() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
           <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
             <Inbox size={20} strokeWidth={1.75} color="var(--accent)" />
-            Inbox
+            {t(language, "inbox.title")}
           </h1>
           <button
             onClick={load}
-            title="Refresh"
+            title={t(language, "common.refresh")}
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, cursor: "pointer", border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", fontSize: 12.5, fontFamily: "inherit" }}
           >
-            <RotateCcw size={13} strokeWidth={1.75} /> Refresh
+            <RotateCcw size={13} strokeWidth={1.75} /> {t(language, "common.refresh")}
           </button>
         </div>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 22px" }}>
-          You are <strong>{me || "— select an identity"}</strong>. Questions colleagues routed to you, and the ones you sent.
+          {t(language, "inbox.you")} <strong>{me || "—"}</strong>. {t(language, "inbox.subtitle")}
         </p>
 
-        {loading && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading…</p>}
+        {loading && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{t(language, "common.loading")}</p>}
 
         {/* Incoming */}
         <h2 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 10px" }}>
-          Questions for you {incoming.length > 0 && <span style={{ color: "var(--accent)" }}>({incoming.filter((r) => r.status === "open").length} open)</span>}
+          {t(language, "inbox.questionsForYou")} {incoming.length > 0 && <span style={{ color: "var(--accent)" }}>({incoming.filter((r) => r.status === "open").length} {t(language, "inbox.open")})</span>}
         </h2>
         {!loading && incoming.length === 0 && (
-          <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 24 }}>Nothing yet.</p>
+          <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 24 }}>{t(language, "inbox.nothingYet")}</p>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
           {incoming.map((r) => (
@@ -126,20 +129,32 @@ export default function ColleagueInbox() {
               {r.status === "answered" ? (
                 <div style={{ marginTop: 10, display: "flex", alignItems: "flex-start", gap: 6, fontSize: 13, color: "var(--text-secondary)" }}>
                   <CheckCircle2 size={14} color="#16A34A" style={{ flexShrink: 0, marginTop: 2 }} />
-                  <span><strong>You replied:</strong> {r.answer}</span>
+                  <span><strong>{t(language, "inbox.youReplied")}</strong> {r.answer}</span>
                 </div>
               ) : (
-                <AnswerBox req={r} onAnswered={load} />
+                <AnswerBox req={r} onAnswered={load} language={language} />
               )}
             </Card>
           ))}
         </div>
 
         {/* Sent */}
-        <h2 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 10px" }}>Your questions</h2>
+        <h2 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 10px" }}>{t(language, "inbox.yourQuestions")}</h2>
         {!loading && sent.length === 0 && (
-          <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>You haven't asked anyone yet.</p>
+          <div style={{ padding: "20px 16px", borderRadius: 10, border: "1px dashed var(--border-color)", textAlign: "center" }}>
+            <MessageSquare size={20} strokeWidth={1.5} color="var(--text-muted)" style={{ margin: "0 auto 8px", opacity: 0.5, display: "block" }} />
+            <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.5 }}>
+              {t(language, "inbox.noSent")}
+            </p>
+            <button
+              onClick={() => setAskOpen(true)}
+              style={{ fontSize: 12, padding: "6px 14px", borderRadius: 8, border: "1px solid var(--accent)", background: "var(--accent-tint)", color: "var(--accent)", cursor: "pointer", fontFamily: "inherit", fontWeight: 500 }}
+            >
+              {t(language, "inbox.askColleague")}
+            </button>
+          </div>
         )}
+        {askOpen && <AskColleagueModal onClose={() => { setAskOpen(false); load(); }} />}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {sent.map((r) => (
             <Card key={r.id}>

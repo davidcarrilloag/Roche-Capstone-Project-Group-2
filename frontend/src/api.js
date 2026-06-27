@@ -110,6 +110,16 @@ export function retireAnnouncement(id) {
   return request(`/announcements/${id}/retire`, { method: "POST" });
 }
 
+// Activity feed (what the team has been doing)
+export function getActivity(limit = 8) {
+  return request(`/activity?limit=${limit}`);
+}
+
+// What scientists have routed to IT (the IT demand view)
+export function getITQuestions() {
+  return request("/it/questions");
+}
+
 // Ask a colleague (expert finder + routed questions)
 export function suggestExperts(question) {
   return request("/experts/suggest", {

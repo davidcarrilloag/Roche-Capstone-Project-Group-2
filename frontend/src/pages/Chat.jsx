@@ -9,8 +9,10 @@ import ColleagueInbox from "../components/ColleagueInbox.jsx";
 import TeamDirectory from "../components/TeamDirectory.jsx";
 import AnnouncementsBar from "../components/AnnouncementsBar.jsx";
 import ITSupport from "../components/ITSupport.jsx";
+import PerspectiveLanding from "../components/PerspectiveLanding.jsx";
 import { getIdentity } from "../components/IdentityPicker.jsx";
 import { listColleagueRequests } from "../api.js";
+import { t } from "../i18n.js";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { generateTitle } from "../api.js";
 import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2, CalendarDays, Inbox, Users, Headset } from "lucide-react";
@@ -654,6 +656,9 @@ export default function Chat() {
   const [openDoc, setOpenDoc] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inboxCount, setInboxCount] = useState(0);
+  const [perspectiveOpen, setPerspectiveOpen] = useState(() => {
+    try { return !localStorage.getItem("perspectiveChosen"); } catch { return false; }
+  });
 
   // Refresh the inbox badge (open questions for the current identity).
   useEffect(() => {
@@ -906,37 +911,37 @@ export default function Chat() {
           <nav style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
             <NavItem
               icon={<MessageSquare size={16} strokeWidth={1.5} />}
-              label="New chat"
+              label={t(language, "nav.newChat")}
               active={activeTab === "chat" && !activeMessages.some((m) => m.role === "user")}
               onClick={startNewChat}
             />
             <NavItem
               icon={<FileText size={16} strokeWidth={1.5} />}
-              label="Documents"
+              label={t(language, "nav.documents")}
               active={activeTab === "documents"}
               onClick={() => setActiveTab("documents")}
             />
             <NavItem
               icon={<CalendarDays size={16} strokeWidth={1.5} />}
-              label="Team schedule"
+              label={t(language, "nav.schedule")}
               active={activeTab === "schedule"}
               onClick={() => setActiveTab("schedule")}
             />
             <NavItem
               icon={<Users size={16} strokeWidth={1.5} />}
-              label="People"
+              label={t(language, "nav.people")}
               active={activeTab === "people"}
               onClick={() => setActiveTab("people")}
             />
             <NavItem
               icon={<Headset size={16} strokeWidth={1.5} />}
-              label="IT Support"
+              label={t(language, "nav.it")}
               active={activeTab === "it"}
               onClick={() => setActiveTab("it")}
             />
             <NavItem
               icon={<Inbox size={16} strokeWidth={1.5} />}
-              label="Inbox"
+              label={t(language, "nav.inbox")}
               active={activeTab === "inbox"}
               onClick={() => setActiveTab("inbox")}
               badge={inboxCount}
@@ -982,10 +987,23 @@ export default function Chat() {
           <div style={{ flexShrink: 0 }}>
             <div style={{ height: 1, backgroundColor: "rgba(255,255,255,0.1)", margin: "8px 0" }} />
             <IdentityPicker />
+            <button
+              onClick={() => setPerspectiveOpen(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6, width: "100%",
+                padding: "4px 10px 8px 12px", border: "none", background: "none",
+                cursor: "pointer", color: "rgba(255,255,255,0.55)", fontSize: 11.5,
+                fontFamily: "inherit", textAlign: "left",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.55)")}
+            >
+              <RotateCcw size={12} strokeWidth={1.75} /> {t(language, "nav.switchPerspective")}
+            </button>
             <LanguageSelector language={language} onSelectLanguage={setLanguage} />
             <SidebarBottomBtn
               icon={<Settings size={15} strokeWidth={1.5} />}
-              label="Settings"
+              label={t(language, "nav.settings")}
               onClick={() => setSettingsOpen(true)}
             />
           </div>
@@ -1025,7 +1043,7 @@ export default function Chat() {
               <Menu size={16} strokeWidth={1.5} />
             </TopbarBtn>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-              {activeTab === "documents" ? "Documents" : activeTab === "schedule" ? "Team schedule" : activeTab === "people" ? "People" : activeTab === "it" ? "IT Support" : activeTab === "inbox" ? "Inbox" : "Chat"}
+              {activeTab === "documents" ? t(language, "nav.documents") : activeTab === "schedule" ? t(language, "nav.schedule") : activeTab === "people" ? t(language, "nav.people") : activeTab === "it" ? t(language, "nav.it") : activeTab === "inbox" ? t(language, "nav.inbox") : t(language, "title.chat")}
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", paddingRight: 20 }}>
@@ -1035,8 +1053,8 @@ export default function Chat() {
 
         {/* Content */}
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <AnnouncementsBar />
-          <div style={{ flex: 1, overflow: "hidden" }}>
+          <AnnouncementsBar language={language} />
+          <div key={activeTab} className="tab-fade-in" style={{ flex: 1, overflow: "hidden" }}>
           {activeTab === "documents" ? (
             <DocumentsPanel
               language={language}
@@ -1044,13 +1062,13 @@ export default function Chat() {
               setOpenDoc={setOpenDoc}
             />
           ) : activeTab === "schedule" ? (
-            <TeamSchedule />
+            <TeamSchedule language={language} />
           ) : activeTab === "people" ? (
-            <TeamDirectory />
+            <TeamDirectory language={language} />
           ) : activeTab === "it" ? (
-            <ITSupport />
+            <ITSupport language={language} />
           ) : activeTab === "inbox" ? (
-            <ColleagueInbox />
+            <ColleagueInbox language={language} />
           ) : (
             <ChatWindow
               key={activeSessionId}
@@ -1068,6 +1086,10 @@ export default function Chat() {
           </div>
         </div>
       </main>
+
+      {perspectiveOpen && (
+        <PerspectiveLanding language={language} onClose={() => setPerspectiveOpen(false)} />
+      )}
 
       {settingsOpen && (
         <SettingsPanel

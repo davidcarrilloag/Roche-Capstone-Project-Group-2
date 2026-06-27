@@ -33,6 +33,12 @@ export default function AskColleagueModal({ question = "", onClose, lockedMember
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null); // { kind, ... }
   const [error, setError] = useState("");
+  const [closing, setClosing] = useState(false);
+
+  function handleClose() {
+    setClosing(true);
+    setTimeout(onClose, 200);
+  }
 
   useEffect(() => {
     if (lockedMember) {
@@ -106,15 +112,15 @@ export default function AskColleagueModal({ question = "", onClose, lockedMember
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 ${closing ? "overlay-fade-out" : "overlay-fade-in"}`}
+      onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
-      <div className="incident-surface bg-white w-full sm:rounded-2xl sm:max-w-md shadow-2xl flex flex-col max-h-[92vh]">
+      <div className={`incident-surface bg-white w-full sm:rounded-2xl sm:max-w-md shadow-2xl flex flex-col max-h-[92vh] ${closing ? "modal-card-out" : "modal-card-in"}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
             <Users size={17} strokeWidth={1.75} /> Ask a colleague
           </h2>
-          <button onClick={onClose} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition" aria-label="Close">✕</button>
+          <button onClick={handleClose} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition" aria-label="Close">✕</button>
         </div>
 
         <div className="overflow-y-auto flex-1 p-5">
@@ -138,7 +144,7 @@ export default function AskColleagueModal({ question = "", onClose, lockedMember
                 </>
               )}
               <div>
-                <button onClick={onClose} className="min-h-[44px] px-10 bg-roche hover:bg-roche-dark text-white rounded-xl text-sm font-medium transition">Done</button>
+                <button onClick={handleClose} className="min-h-[44px] px-10 bg-roche hover:bg-roche-dark text-white rounded-xl text-sm font-medium transition">Done</button>
               </div>
             </div>
           ) : (

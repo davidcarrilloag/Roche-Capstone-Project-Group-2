@@ -146,7 +146,9 @@ function suggestsTicket(text) {
 function suggestsBooking(text) {
   const t = (text || "").toLowerCase();
   const verbs = ["book", "reserve", "reservation", "schedule the", "buchen", "reservieren", "réserver", "réservation", "prenota", "prenotare", "riservare"];
-  const things = ["equipment", "centrifuge", "freezer", "pcr", "thermocycler", "microscope", "confocal", "plate reader", "fume hood", "autoclave", "mass spec", "spectrometer", "machine", "instrument", "gerät", "équipement", "attrezzatura", "microscopio", "centrifug",
+  // Use word stems so variants/typos still match (microscope/microscopy/
+  // microscopio -> "microscop"; the RAG is robust to typos, this should be too).
+  const things = ["equipment", "centrifug", "freezer", "pcr", "thermocycler", "microscop", "confocal", "plate reader", "fume hood", "autoclave", "mass spec", "spectrometer", "machine", "instrument", "gerät", "équipement", "attrezzatura", "scanner",
     // rooms & facilities
     "room", "suite", "bsl-2", "bsl2", "biosafety", "conference", "meeting room", "tissue culture", "cell culture", "dark room", "darkroom", "facility", "raum", "salle", "sala", "stanza"];
   const hasVerb = verbs.some((w) => t.includes(w));
@@ -438,6 +440,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
   const [sendHover, setSendHover] = useState(false);
   // Hands-free conversation ("call") mode.
   const [callActive, setCallActive] = useState(false);
+  const [callClosing, setCallClosing] = useState(false);
   const [callStatus, setCallStatus] = useState("idle"); // listening | thinking | speaking
   const [callTranscript, setCallTranscript] = useState("");
   const endRef = useRef(null);
@@ -715,12 +718,16 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
 
   function endCall() {
     callActiveRef.current = false;
-    setCallActive(false);
+    setCallClosing(true);
     setCallStatus("idle");
     setCallTranscript("");
     try { callRecogRef.current?.stop?.(); } catch (e) {}
     callRecogRef.current = null;
     stopSpeaking();
+    setTimeout(() => {
+      setCallActive(false);
+      setCallClosing(false);
+    }, 220);
   }
 
   function callListen() {
@@ -1293,6 +1300,7 @@ export default function ChatWindow({ sessionId = "", language = "en", messages: 
           : cl.listening;
         return (
           <div
+            className={callClosing ? "fullscreen-fade-out" : "fullscreen-fade-in"}
             style={{
               position: "fixed",
               inset: 0,

@@ -39,9 +39,9 @@ in-process module — not a separate service.
             │               │               │               │
             ▼               ▼               ▼               ▼
    ┌─────────────┐  ┌──────────────┐ ┌────────────┐ ┌───────────────┐
-   │  Intent     │  │  Sentiment   │ │ Translator │ │  ServiceNow   │
-   │  classifier │  │  (Groq)      │ │ (Groq +    │ │  client       │
-   │  (Groq*)    │  │              │ │ langdetect)│ │  (Table API)  │
+   │  Intent     │  │  Sentiment   │ │ Lang detect│ │  ServiceNow   │
+   │  classifier │  │  (heuristic) │ │ (langdetect)│ │  client       │
+   │  (heuristic)│  │              │ │            │ │  (Table API)  │
    └──────┬──────┘  └──────────────┘ └────────────┘ └───────────────┘
           │ question
           ▼
@@ -58,7 +58,7 @@ in-process module — not a separate service.
             │  (Markdown + frontmtr) │ bridge   │ (live source)│
             └────────────────────────┘        └──────────────┘
 
-   * Groq-backed services degrade to lightweight heuristics if no Groq key.
+   * Intent / sentiment / title are lightweight keyword heuristics (no LLM).
 ```
 
 ### Request flow for `/chat`
@@ -168,9 +168,9 @@ facilities/access, lab sharing).
 
 | Service | File | Notes |
 |---------|------|-------|
-| Intent classifier | `services/classifier.py` | question vs feedback (Groq + heuristic fallback) |
-| Sentiment | `services/sentiment.py` | positive/negative/neutral/frustrated/confused/satisfied |
-| Translator | `services/translator.py` | langdetect + Groq translation |
+| Intent classifier | `services/classifier.py` | question vs feedback (keyword heuristic) |
+| Sentiment | `services/sentiment.py` | positive/negative/neutral/frustrated/confused/satisfied (keyword heuristic) |
+| Language detection | `services/translator.py` | langdetect (RAG answers directly in the user's language) |
 | Feedback store | `services/feedback_store.py` | JSONL log + aggregation for the dashboard |
 | ServiceNow | `services/servicenow.py` | real incidents via the Table API; mock mode for dev |
 
@@ -184,16 +184,17 @@ facilities/access, lab sharing).
 | Embeddings | **`models/gemini-embedding-001`** (3072-dim) | Same provider as the LLM, free |
 | Vector DB | **ChromaDB** (local, persisted) | Zero infra, easy to run for the demo |
 | RAG orchestration | **LangChain** 0.3 | Standard framework; loaders, splitters, LCEL chains |
-| LLM (NLP helpers) | **Groq** (Llama 3.x) | Fast/free for sentiment, translation, intent; heuristic fallback |
+| NLP helpers (intent / sentiment / titles) | **keyword heuristics** | Deterministic, offline, no extra keys |
 | Language detection | **langdetect** | Lightweight, no API cost |
 | Backend | **FastAPI** (async) | Single service, Swagger docs, DI |
 | Frontend | **React + Vite + Tailwind** | Touchscreen-friendly chat UI |
 | Documents | **Google Drive API v3** (service account) | Live document source |
 | Ticketing | **ServiceNow REST** (Table API) | Real incident creation |
 
-> **Why two LLM providers?** Document Q&A uses Gemini (native multilingual +
-> free embeddings in one provider). The smaller NLP helpers use Groq and fall
-> back to heuristics, so the app works even without a Groq key.
+> **One LLM provider.** Document Q&A and incident triage use Gemini (native
+> multilingual + free embeddings in one provider). The smaller NLP helpers
+> (intent, sentiment, titles) are fast keyword heuristics, so the app needs only
+> a single Gemini key.
 
 ---
 
@@ -205,7 +206,6 @@ facilities/access, lab sharing).
 | `GEMINI_MODEL` / `EMBEDDING_MODEL` | default `gemini-flash-latest` / `models/gemini-embedding-001` |
 | `CHROMA_DB_PATH` / `SOPS_PATH` | vector store and SOP folder locations |
 | `CONFIDENCE_THRESHOLD` | low-confidence cutoff (default 0.45) |
-| `GROQ_API_KEY` | optional — sentiment/translation/intent (heuristic fallback) |
 | `GOOGLE_DRIVE_FOLDER_ID` / `GOOGLE_SERVICE_ACCOUNT_JSON` | Drive sync |
 | `SERVICENOW_INSTANCE_URL` / `_USERNAME` / `_PASSWORD` | live incidents |
 | `MOCK_MODE` | mock ServiceNow responses when true |
@@ -251,7 +251,7 @@ RAG suitability, latency, and cost.
 | 2 | Claude Sonnet | Anthropic | Excellent | Strong | $$ | Best for long docs / careful answers |
 | 3 | Gemini 2.x/Flash | Google | Excellent | Strong | **Free tier** | Native embeddings; chosen |
 | 4 | Command R+ | Cohere | Good | Best native RAG | $$ | RAG-specialised |
-| 5 | Llama (hosted) | Meta/Groq | Very good | Good | Free/cheap | Used for NLP helpers |
+| 5 | Llama (hosted) | Meta | Very good | Good | Free/cheap | Considered; not used |
 | 6 | Qwen 3 | Alibaba | Excellent | Very good | Cheap | Strong multilingual |
 | 7 | Mistral Large | Mistral | Good (FR/DE) | Good | $$ | EU vendor, GDPR-friendly |
 | 8 | DeepSeek V3 | DeepSeek | Good | Good | Cheap | Data-residency risk |
@@ -273,6 +273,6 @@ so swapping providers later is a config change.
 - **Upsert by `doc_id`.** Re-ingesting a document cleanly replaces its chunks,
   so updating a doc in Drive + re-syncing reflects immediately.
 - **Graceful degradation.** Missing keys don't crash the app: no Gemini key →
-  a clear "not configured" message; no Groq key → heuristic sentiment/intent.
+  a clear "not configured" message; intent/sentiment run on offline heuristics.
 - **ChromaDB for the demo**, a managed vector DB (e.g. Pinecone/Weaviate) for a
   real Roche deployment.

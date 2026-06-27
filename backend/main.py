@@ -21,7 +21,7 @@ from fastapi import Query
 
 from config import get_settings
 from models.schemas import HealthResponse
-from routes import announcements, bookings, chat, experts, feedback, incidents, members
+from routes import activity, announcements, bookings, chat, experts, feedback, incidents, members
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,6 +53,7 @@ app.include_router(bookings.router)
 app.include_router(members.router)
 app.include_router(experts.router)
 app.include_router(announcements.router)
+app.include_router(activity.router)
 
 
 @app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
@@ -92,8 +93,8 @@ async def on_startup() -> None:
     except Exception as exc:  # never block startup on the DB
         logger.warning("DB init skipped: %s", exc)
     logger.info(
-        "MOCK_MODE=%s | Groq=%s | Gemini/RAG=%s",
-        settings.mock_mode, settings.has_groq, settings.has_google,
+        "MOCK_MODE=%s | Gemini/RAG=%s",
+        settings.mock_mode, settings.has_google,
     )
     logger.info("SOPs path: %s", settings.sops_path)
 

@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { listBookings } from "../api.js";
 import { getIdentity } from "./IdentityPicker.jsx";
+import ActivityFeed from "./ActivityFeed.jsx";
+import { t } from "../i18n.js";
 import { CalendarDays, MapPin, User, RotateCcw, ExternalLink } from "lucide-react";
 
-function fmtDate(iso) {
+const LOCALES = { en: "en-US", de: "de-DE", fr: "fr-FR", it: "it-IT" };
+
+function fmtDate(iso, language) {
   const d = new Date(iso + "T00:00:00");
   if (isNaN(d)) return iso;
-  return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  return d.toLocaleDateString(LOCALES[language] || "en-US", { weekday: "long", day: "numeric", month: "long" });
 }
 
 function endTime(time, duration) {
@@ -15,7 +19,7 @@ function endTime(time, duration) {
   return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export default function TeamSchedule() {
+export default function TeamSchedule({ language = "en" }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,11 +61,11 @@ export default function TeamSchedule() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
           <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
             <CalendarDays size={20} strokeWidth={1.75} color="var(--accent)" />
-            Team schedule
+            {t(language, "sched.title")}
           </h1>
           <button
             onClick={load}
-            title="Refresh"
+            title={t(language, "common.refresh")}
             style={{
               display: "flex", alignItems: "center", gap: 6,
               padding: "7px 12px", borderRadius: 8, cursor: "pointer",
@@ -69,21 +73,21 @@ export default function TeamSchedule() {
               color: "var(--text-secondary)", fontSize: 12.5, fontFamily: "inherit",
             }}
           >
-            <RotateCcw size={13} strokeWidth={1.75} /> Refresh
+            <RotateCcw size={13} strokeWidth={1.75} /> {t(language, "common.refresh")}
           </button>
         </div>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 22px" }}>
-          All equipment reservations across the lab. Yours are highlighted.
+          {t(language, "sched.subtitle")}
         </p>
 
-        {loading && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading…</p>}
+        {loading && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{t(language, "common.loading")}</p>}
         {error && <p style={{ fontSize: 13, color: "#DC2626" }}>{error}</p>}
 
         {!loading && !error && bookings.length === 0 && (
           <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-muted)" }}>
             <CalendarDays size={32} strokeWidth={1.25} style={{ margin: "0 auto 12px", opacity: 0.5 }} />
-            <p style={{ fontSize: 14 }}>No reservations yet.</p>
-            <p style={{ fontSize: 12.5 }}>Book equipment from the chat — it'll show up here for the whole team.</p>
+            <p style={{ fontSize: 14 }}>{t(language, "sched.empty1")}</p>
+            <p style={{ fontSize: 12.5 }}>{t(language, "sched.empty2")}</p>
           </div>
         )}
 
@@ -95,7 +99,7 @@ export default function TeamSchedule() {
                 color: "var(--text-muted)", marginBottom: 10, paddingLeft: 2,
               }}
             >
-              {fmtDate(group.date)}
+              {fmtDate(group.date, language)}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {group.items.map((b) => {
@@ -123,7 +127,7 @@ export default function TeamSchedule() {
                       </div>
                       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                          <User size={12} strokeWidth={1.75} /> {b.user || "—"}{mine ? " (you)" : ""}
+                          <User size={12} strokeWidth={1.75} /> {b.user || "—"}{mine ? ` (${t(language, "common.you")})` : ""}
                         </span>
                         {b.location && (
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -134,7 +138,7 @@ export default function TeamSchedule() {
                     </div>
                     {/* Right: reference + calendar link */}
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 11, fontFamily: "ui-monospace, monospace", color: "var(--text-muted)" }}>{b.reference}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", opacity: 0.6 }}>{b.reference}</div>
                       {b.calendar_link && (
                         <a
                           href={b.calendar_link}
@@ -152,6 +156,9 @@ export default function TeamSchedule() {
             </div>
           </div>
         ))}
+
+        {/* Recent team activity */}
+        {!loading && !error && <ActivityFeed scheduleVariant language={language} title={t(language, "activity.recent")} />}
       </div>
     </div>
   );

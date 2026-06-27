@@ -2,11 +2,18 @@ import { useState } from "react";
 import { submitFeedback } from "../api.js";
 import { ThumbsUp, ThumbsDown, X, Send } from "lucide-react";
 
-const REASON_CHIPS = [
+const NEGATIVE_REASON_CHIPS = [
   "Wrong information",
   "Source not relevant",
   "Answer too vague",
   "Wrong language",
+];
+
+const POSITIVE_REASON_CHIPS = [
+  "Accurate information",
+  "Clear explanation",
+  "Helpful source",
+  "Saved me time",
 ];
 
 export default function FeedbackButton({ messageId, topic }) {
@@ -14,7 +21,6 @@ export default function FeedbackButton({ messageId, topic }) {
   const [busy, setBusy] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
   const [commentText, setCommentText] = useState("");
-  // showThanks mounts the element; thanksVisible drives opacity for a CSS fade-out.
   const [showThanks, setShowThanks] = useState(false);
   const [thanksVisible, setThanksVisible] = useState(false);
 
@@ -26,22 +32,17 @@ export default function FeedbackButton({ messageId, topic }) {
   }
 
   async function rate(kind) {
-    if (selected !== null || busy) return;
+    if (kind === selected || busy) return;
     setBusy(true);
     try {
-      // Submit the same payload as before: messageId + rating (1 or -1),
-      // plus the source SOP as topic when known (for per-topic analytics).
       await submitFeedback(messageId, kind === "up" ? 1 : -1, null, null, topic);
     } catch (e) {
       console.error("Feedback error:", e);
     } finally {
       setSelected(kind);
       setBusy(false);
-      if (kind === "up") {
-        triggerThanks();
-      } else {
-        setShowPanel(true);
-      }
+      setCommentText("");
+      setShowPanel(true);
     }
   }
 
@@ -83,13 +84,17 @@ export default function FeedbackButton({ messageId, topic }) {
     setCommentText("");
   }
 
+  const isPositive = selected === "up";
+  const chips = isPositive ? POSITIVE_REASON_CHIPS : NEGATIVE_REASON_CHIPS;
+  const panelLabel = isPositive ? "What did you like?" : "What was wrong?";
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {/* Thumbs row + transient thanks text */}
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <FeedbackBtn
           onClick={() => rate("up")}
-          disabled={busy || selected !== null}
+          disabled={busy}
           active={selected === "up"}
           ariaLabel="Helpful"
         >
@@ -101,7 +106,7 @@ export default function FeedbackButton({ messageId, topic }) {
         </FeedbackBtn>
         <FeedbackBtn
           onClick={() => rate("down")}
-          disabled={busy || selected !== null}
+          disabled={busy}
           active={selected === "down"}
           ariaLabel="Not helpful"
         >
@@ -125,8 +130,8 @@ export default function FeedbackButton({ messageId, topic }) {
         )}
       </div>
 
-      {/* Inline reason panel — expands below thumbs on downvote, no modal */}
-      {showPanel && (
+      {/* Inline panel — expands below thumbs on selection, positive or negative based on active thumb */}
+      {showPanel && selected !== null && (
         <div
           style={{
             backgroundColor: "var(--bg-card)",
@@ -152,7 +157,7 @@ export default function FeedbackButton({ messageId, topic }) {
                 color: "var(--text-secondary)",
               }}
             >
-              What was wrong?
+              {panelLabel}
             </span>
             <button
               onClick={dismissPanel}
@@ -176,9 +181,9 @@ export default function FeedbackButton({ messageId, topic }) {
             </button>
           </div>
 
-          {/* Reason chips — small rectangular bordered buttons */}
+          {/* Reason chips */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-            {REASON_CHIPS.map((reason) => (
+            {chips.map((reason) => (
               <ReasonChip key={reason} label={reason} onClick={() => submitReason(reason)} />
             ))}
           </div>
