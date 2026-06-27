@@ -1,9 +1,17 @@
-# Test report & insights — backend NLP services
+# Test report & insights — backend
 
-Verification of the three lightweight NLP services that route and tag every
-message: the **intent classifier** (question vs feedback), the **sentiment**
-detector, and the **incident triage** (category + severity). Includes a
-heuristic-vs-Gemini experiment for triage.
+Verification of the backend in two layers:
+
+1. **NLP services** (§1–8) — the three lightweight services that route and tag
+   every message: the **intent classifier** (question vs feedback), the
+   **sentiment** detector, and the **incident triage** (category + severity),
+   plus a heuristic-vs-Gemini experiment.
+2. **API & logic suites** (§9) — deterministic, key-free tests over the HTTP
+   contract, booking-conflict logic, the ITIL priority matrix, the expert
+   matcher, and the multilingual reach of the heuristics.
+
+**Current totals: 112 tests collected — 106 passed, 6 xfailed** (the 6 xfails are
+*documented* multilingual gaps, see §9.5). Runs in ~10 s, no keys, no network.
 
 ---
 
@@ -204,11 +212,109 @@ locked-out badge or expired license as medium/high is defensible).
 ```bash
 cd backend
 pip install pytest
-python -m pytest tests/ -v      # unit suite (46/60 by design)
+python -m pytest tests/ -v      # full suite (112 tests, 106 pass + 6 xfail)
 python -m eval.triage_uplift    # heuristic vs Gemini (needs GOOGLE_API_KEY)
 ```
 
-> Latest figures: unit suite **60/60 (100%)** after the improvements (was
+> Latest figures: NLP unit suite **60/60 (100%)** after the improvements (was
 > 46/60, ~77%). Triage experiment: heuristic **80%** vs Gemini **40%** exact
-> match, but Gemini **90%** vs **85%** on category — see §4–6 for why all these
-> numbers are true and what they mean.
+> match, but Gemini **90%** vs **85%** on category — see §4–6. The new API &
+> logic suites add **52** deterministic tests — see §9.
+
+---
+
+## 9. Deterministic API & logic suites (key-free)
+
+Five new suites add coverage **beyond the NLP services**, all deterministic and
+**runnable with no API keys** (the table the team asked for). They run against an
+**isolated SQLite database** seeded with the demo world — `conftest.py` sets
+`MOCK_MODE=true`, clears `GOOGLE_API_KEY`, and points `DATABASE_URL` at a temp
+file, so the dev database (and a user's own seeded activity) is never touched.
+
+| Suite | What it proves | Tests | Result |
+|---|---|---|---|
+| `test_api_integration.py` | every key route answers with the right **status + contract** (`/members`, `/members/directory`, `/bookings`, `/equipment`, `/experts/suggest`, `/announcements`, `/it/questions`, `/activity`, `/incidents/triage`, `/health`) | 10 | ✅ all pass |
+| `test_booking_conflict.py` | overlap detection — clash, **adjacent-allowed**, contained-clash, same-time-different-resource, unknown resource | 6 | ✅ all pass |
+| `test_priority_matrix.py` | ITIL mapping severity → (impact, urgency) → **Priority**; critical→P1, low→P4, **never P5**; end-to-end via `/incidents` | 14 | ✅ all pass |
+| `test_experts.py` | expert matcher routes by specialty — **VPN → Sarah (IT)**, **CRISPR → Carla**, mass-spec → Sophie, blot → Anna; no-match → empty | 7 | ✅ all pass |
+| `test_multilingual_heuristics.py` | how far the English-keyword heuristics reach into DE/FR/IT | 15 | ✅ 9 pass · 6 **xfail** |
+| **Total** | | **52** | **46 pass + 6 documented xfail** |
+
+### 9.1 API integration (FastAPI `TestClient`)
+We assert the **contract the frontend depends on**, not AI content: status codes,
+list/object shapes and field names (`reference`, `status`, `count_open`,
+`matched_on`, …). The activity feed is also checked to be **sorted newest-first**.
+Because `MOCK_MODE` is on and no key is set, ServiceNow returns deterministic mock
+incidents and triage runs the heuristic — so these are stable in CI.
+
+### 9.2 Booking conflicts
+The interesting edge is **adjacency**: a 08:00–09:00 booking must *not* block a
+09:00 start (end == start is not an overlap). We test the strict overlap
+(`start < b_end and b_start < end`), a fully-contained short booking inside a long
+one (still a clash), same-time-on-different-resource (allowed), and an unknown
+resource id (rejected). All on a far-future date so they never collide with the
+seeded world.
+
+### 9.3 ITIL priority matrix
+Two layers: the **triage mapping** (`SEVERITY_TO_UI`, `PRIORITY_LABEL`) and
+ServiceNow's **OOB matrix** (`impact × urgency → P1..P5`). The key invariant —
+encoded in `services/triage.py` — is that the four severities are mapped so the
+result is **always P1..P4 and never P5 "Planning"** (a real problem must never be
+filed as deferrable backlog). We also drive it **end-to-end**: a clearly critical
+incident posted to `/incidents` comes back **P1**, a trivial request comes back
+**P4**.
+
+### 9.4 Expert matcher
+Confirms the routing the "ask a colleague" feature relies on: `"I can't connect to
+the VPN"` → **Sarah Kim** (Network & Systems Engineer, IT), `"validate a CRISPR
+knockout"` → **Dr. Carla Moreno**, mass-spec → Sophie, Western blot → Anna. A
+question with **no expertise overlap** ("what time is lunch?") correctly returns
+**no suggestion**, so the UI can fall back to a general route instead of a bad
+guess. The top-N limit (2) is enforced.
+
+### 9.5 Multilingual reach of the heuristics — the honest finding
+This is the "⚠️ ojo" row, and the result is the most informative one. **Two
+layers must not be confused:**
+
+- **The assistant's *answers* are fully multilingual** — that is the RAG, verified
+  separately at **100%** by `eval/multilingual.py` (see `docs/multilingual-insights.md`).
+- **The intent classifier and sentiment detector are English-keyword heuristics.**
+  This suite measures exactly how far they carry into other languages with no keys,
+  and the answer is: *partially, and mostly by coincidence.*
+
+**What genuinely works (9 passing tests):**
+- **Question detection is language-agnostic** — it keys off the trailing `"?"`, so
+  DE/FR/IT/ES questions are all classified correctly.
+- **A few sentiment cues survive into Romance languages** because they share a
+  Latin root with the English keyword: `urgent/urgente` → frustrated,
+  `confus/confuso` → confused, and Italian `frustrato` (which happens to contain
+  the marker stem `frustrat`).
+
+**What does *not* work (6 `xfail` tests — kept in the suite to document the gap,
+not hidden):**
+- The marker is the **full stem `frustrat`**, so German `frustriert` and even
+  French `frustré` slip through → read as `neutral`.
+- **German barely registers at all** (it's Germanic, not Romance): `verwirrend`
+  (confusing), `nutzlos` (useless), `Fehler` (error) match no English keyword, so
+  German **feedback without a `"?"` is misread as a question** and German tone is
+  read as neutral.
+
+**Conclusion:** the multilingual *intelligence* lives in the RAG (answers in the
+user's language, 100%). The lightweight **classifier/sentiment heuristics are
+English-first by design** and only coincidentally multilingual — a known,
+now-**measured** limitation, not a silent one. The honest fix would be a small
+multilingual lexicon (or an LLM path) for intent/sentiment; until then the `xfail`
+markers keep the gap visible in every test run.
+
+---
+
+## 10. How to run (everything)
+
+```bash
+cd backend
+pip install pytest
+python -m pytest tests/ -v          # all 112 tests (106 pass + 6 documented xfail)
+python -m pytest tests/test_api_integration.py tests/test_booking_conflict.py \
+                 tests/test_priority_matrix.py tests/test_experts.py \
+                 tests/test_multilingual_heuristics.py -v   # just the new suites
+```
