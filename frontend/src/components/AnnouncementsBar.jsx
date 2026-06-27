@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listAnnouncements } from "../api.js";
+import { t } from "../i18n.js";
 import { Wrench, AlertTriangle, Info, Check, ChevronDown, ChevronUp } from "lucide-react";
 
 const CAT = {
@@ -17,7 +18,7 @@ function getTrayStyle(items) {
 }
 
 // Dismissals are per page load (in-memory) so alerts always show on reload.
-export default function AnnouncementsBar() {
+export default function AnnouncementsBar({ language = "en" }) {
   const [items, setItems] = useState([]);
   const [dismissed, setDismissed] = useState([]);
   const [fading, setFading] = useState([]);
@@ -40,7 +41,7 @@ export default function AnnouncementsBar() {
   if (visible.length === 0) return null;
 
   const { color, bg, border } = getTrayStyle(visible);
-  const label = `${visible.length} active alert${visible.length !== 1 ? "s" : ""}`;
+  const label = `${visible.length} ${t(language, visible.length !== 1 ? "ann.alerts" : "ann.alert")}`;
 
   return (
     <div style={{ maxWidth: 760, margin: "0 auto", padding: "12px 20px 0", width: "100%" }}>

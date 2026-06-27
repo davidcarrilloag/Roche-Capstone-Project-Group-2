@@ -31,10 +31,16 @@ no drift — and verified at **100%**.
 
 ---
 
-## 2. The gap: the UI chrome is only partly localised ⚠️
+## 2. The gap we found — and closed: the UI chrome ✅
 
-This is almost certainly what feels "not well adapted": the **answers** change
-language, but much of the **interface** does not.
+The original finding was that the **answers** changed language but much of the
+**interface** did not, so a German user got perfect German answers inside a
+mostly-English shell. That read as "not properly translated" even though the hard
+part was solid. **This has now been fixed.**
+
+We added a central string table — `frontend/src/i18n.js` — exposing
+`t(language, key)` with full EN / DE / FR / IT translations, and wired the
+language prop through every v2 panel.
 
 **Localised today (EN/DE/FR/IT):**
 - Chat welcome subtitle + suggested shortcuts
@@ -42,42 +48,42 @@ language, but much of the **interface** does not.
   "Ask a colleague"
 - Language-switch dividers, small-talk replies, and the RAG system messages
   (not configured / rate-limited / not found / low-confidence)
+- **Sidebar navigation** — New chat, Documents, Team schedule, People, IT Support,
+  Inbox, Settings, Switch perspective, and the topbar title
+- **The v2 panels** — Team schedule, People directory + profiles, IT Support /
+  IT Console (both the scientist and IT views), Inbox, the announcements bar, and
+  the Choose-a-perspective landing. Dates in the schedule already localise via
+  `toLocaleDateString` with per-language locales.
 
-**Still English only:**
-- Sidebar navigation — *New chat, Documents, Team schedule, People, IT Support,
-  Inbox, Settings, Switch perspective*
-- The v2 panels themselves — **Team schedule, People directory, IT Console,
-  Inbox, Settings**, the **booking form**, **Ask-a-colleague modal**,
-  **incident form**, **announcements composer**, the **activity feed**, and the
-  **Choose-a-perspective** landing
+So a German user now gets German **answers** inside a German **interface**.
 
-So a German user gets perfect German **answers** inside an interface whose
-buttons and panels are mostly **English** — which reads as "not properly
-translated" even though the hard part (the AI answering in-language) is solid.
+**Still English only (small backlog):** a few modal forms — the booking form,
+Ask-a-colleague modal, incident form, and the announcements composer — plus the
+Settings panel body. These are secondary surfaces; the primary navigation and
+panels are fully translated.
 
 ---
 
 ## 3. Conclusions (for the report)
 
-1. **The intelligence is multilingual; the chrome is the backlog.** The valuable,
-   hard capability — grounded answers in the user's language — is verified at
-   **100%** across EN/DE/FR/IT. The remaining work is **UI string localisation**,
-   which is straightforward (translate labels), not a model problem.
-2. **Why this design is sound.** Cross-lingual retrieval avoids maintaining four
-   copies of every SOP (size, drift, sync). One corpus, any language, on the fly.
-3. **Honest scope.** The newer v2 features (bookings, people, IT, inbox, settings,
-   perspectives) were built English-first; their strings haven't been translated
-   yet.
+1. **Both layers are now multilingual.** The hard capability — grounded answers in
+   the user's language — is verified at **100%** across EN/DE/FR/IT. The UI chrome
+   gap we identified has been closed by externalising strings into a per-language
+   table and translating the navigation and panels.
+2. **Why the answer design is sound.** Cross-lingual retrieval avoids maintaining
+   four copies of every SOP (size, drift, sync). One corpus, any language, on the
+   fly.
+3. **Honest scope.** A handful of modal forms (booking, ask-a-colleague, incident,
+   announcement composer) and the Settings body remain English-only — mechanical
+   work with no model risk, following the same `t(language, key)` pattern.
 
 ---
 
 ## 4. Recommendation
 
-To reach full parity, **externalise the UI strings** into the existing per-language
-maps (the app already uses `UI_TEXT[language]` for the chat) and translate the
-sidebar + the v2 panels. It's mechanical work with no model risk. Priority order:
-sidebar navigation → booking/ask-colleague modals → the panels.
+To reach 100% parity, apply the existing `t(language, key)` helper to the four
+remaining modal forms and the Settings panel. It's mechanical work with no model
+risk.
 
-> Bottom line: **answers = 100% multilingual (verified); interface = partially
-> translated.** The gap the user noticed is UI text, not the assistant's language
-> ability.
+> Bottom line: **answers = 100% multilingual (verified); interface = navigation
+> and all primary panels translated**, with only a few modal forms left.

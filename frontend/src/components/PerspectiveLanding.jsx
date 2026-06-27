@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
 import { membersDirectory } from "../api.js";
+import { t } from "../i18n.js";
 import { FlaskConical, Headset, ChevronDown, Check } from "lucide-react";
 
 const PERSPECTIVES = [
   {
     name: "Dr. Marco Rossi",
-    role: "Research Scientist · Molecular Biology",
+    roleKey: "persp.sciRole",
+    blurbKey: "persp.sciBlurb",
     Icon: FlaskConical,
     color: "#0066CC",
-    blurb: "See the app as a scientist: ask the assistant, book equipment and rooms, follow your team's activity, and reach colleagues or IT.",
   },
   {
     name: "Tom Becker",
-    role: "IT Service Desk",
+    roleKey: "persp.itRole",
+    blurbKey: "persp.itBlurb",
     Icon: Headset,
     color: "#7C3AED",
-    blurb: "See the app as IT: answer scientists' questions, see what the lab is asking, and post updates to everyone.",
   },
 ];
 
@@ -28,7 +29,7 @@ function choose(name) {
   window.location.reload();
 }
 
-export default function PerspectiveLanding({ onClose }) {
+export default function PerspectiveLanding({ onClose, language = "en" }) {
   const [showAll, setShowAll] = useState(false);
   const [all, setAll] = useState([]);
 
@@ -50,11 +51,11 @@ export default function PerspectiveLanding({ onClose }) {
     >
       <div style={{ width: "100%", maxWidth: 720, textAlign: "center" }}>
         <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>
-          Roche Lab Assistant
+          {t(language, "persp.brand")}
         </div>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: "#fff", margin: "0 0 8px" }}>Choose a perspective</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 700, color: "#fff", margin: "0 0 8px" }}>{t(language, "persp.title")}</h1>
         <p style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", margin: "0 0 28px" }}>
-          Experience the app the way each person would in real life.
+          {t(language, "persp.subtitle")}
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
@@ -77,10 +78,10 @@ export default function PerspectiveLanding({ onClose }) {
               </div>
               <div>
                 <div style={{ fontSize: 17, fontWeight: 600 }}>{p.name}</div>
-                <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.65)" }}>{p.role}</div>
+                <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.65)" }}>{t(language, p.roleKey)}</div>
               </div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>{p.blurb}</div>
-              <div style={{ marginTop: "auto", fontSize: 13, fontWeight: 600, color: "#fff" }}>Enter as {p.name.split(" ").slice(-1)[0]} →</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>{t(language, p.blurbKey)}</div>
+              <div style={{ marginTop: "auto", fontSize: 13, fontWeight: 600, color: "#fff" }}>{t(language, "persp.enterAs")} {p.name.split(" ").slice(-1)[0]} →</div>
             </button>
           ))}
         </div>
@@ -90,7 +91,7 @@ export default function PerspectiveLanding({ onClose }) {
           onClick={() => setShowAll((s) => !s)}
           style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 22, background: "none", border: "none", color: "rgba(255,255,255,0.7)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
         >
-          Or pick someone else <ChevronDown size={15} style={{ transform: showAll ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+          {t(language, "persp.pickElse")} <ChevronDown size={15} style={{ transform: showAll ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
         </button>
 
         {showAll && (
@@ -113,7 +114,7 @@ export default function PerspectiveLanding({ onClose }) {
         {onClose && (
           <div style={{ marginTop: 22 }}>
             <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>
-              Keep current view
+              {t(language, "persp.keepView")}
             </button>
           </div>
         )}

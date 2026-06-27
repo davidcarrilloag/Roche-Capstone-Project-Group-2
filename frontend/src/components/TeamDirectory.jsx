@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { membersDirectory, memberProfile } from "../api.js";
 import { getIdentity } from "./IdentityPicker.jsx";
 import AskColleagueModal from "./AskColleagueModal.jsx";
+import { t } from "../i18n.js";
 import { ArrowLeft, MessageSquare, Lightbulb, CalendarDays, MapPin, Award } from "lucide-react";
 
 const AVATAR_COLORS = ["#0066CC", "#7C3AED", "#0891B2", "#DB2777", "#EA580C", "#16A34A", "#CA8A04", "#475569"];
@@ -42,7 +43,7 @@ function Tags({ expertise }) {
   );
 }
 
-function ProfileView({ id, onBack }) {
+function ProfileView({ id, onBack, language = "en" }) {
   const [p, setP] = useState(null);
   const [loading, setLoading] = useState(true);
   const [ask, setAsk] = useState(false);
@@ -52,14 +53,14 @@ function ProfileView({ id, onBack }) {
     memberProfile(id).then(setP).catch(() => {}).finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <p style={{ fontSize: 13, color: "var(--text-muted)", padding: 20 }}>Loading…</p>;
+  if (loading) return <p style={{ fontSize: 13, color: "var(--text-muted)", padding: 20 }}>{t(language, "common.loading")}</p>;
   if (!p) return null;
   const isMe = me && p.name === me;
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 40px" }}>
       <button onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 18, padding: "5px 10px", borderRadius: 8, border: "1px solid var(--border-color)", background: "transparent", color: "var(--text-secondary)", fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>
-        <ArrowLeft size={14} /> All people
+        <ArrowLeft size={14} /> {t(language, "people.allPeople")}
       </button>
 
       {/* Header */}
@@ -67,13 +68,13 @@ function ProfileView({ id, onBack }) {
         <Avatar name={p.name} size={64} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)" }}>
-            {p.name} {isMe && <span style={{ fontSize: 12, color: "var(--accent)" }}>(you)</span>}
+            {p.name} {isMe && <span style={{ fontSize: 12, color: "var(--accent)" }}>({t(language, "common.you")})</span>}
           </div>
           <div style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>{p.role} · {p.team}</div>
         </div>
         {!isMe && (
           <button onClick={() => setAsk(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "none", backgroundColor: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
-            <MessageSquare size={15} /> Ask / meet
+            <MessageSquare size={15} /> {t(language, "common.askMeet")}
           </button>
         )}
       </div>
@@ -82,32 +83,32 @@ function ProfileView({ id, onBack }) {
 
       {/* Stats */}
       <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
-        <Stat icon={Lightbulb} value={p.stats.answers} label="answers contributed" />
-        <Stat icon={CalendarDays} value={p.stats.bookings} label="bookings" />
+        <Stat icon={Lightbulb} value={p.stats.answers} label={t(language, "people.answersContrib")} />
+        <Stat icon={CalendarDays} value={p.stats.bookings} label={t(language, "people.bookings")} />
       </div>
 
       {/* Knowledge contributions */}
       <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 12px", display: "flex", alignItems: "center", gap: 8 }}>
-        <Award size={16} color="var(--accent)" /> Knowledge contributions
+        <Award size={16} color="var(--accent)" /> {t(language, "people.contributions")}
       </h2>
       {p.contributions.length === 0 ? (
-        <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 24 }}>No answers shared yet.</p>
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 24 }}>{t(language, "people.noContrib")}</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
           {p.contributions.map((c, i) => (
             <div key={i} style={{ border: "1px solid var(--border-color)", borderRadius: 10, padding: "12px 14px", backgroundColor: "var(--bg-card)" }}>
               <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 4 }}>Q: {c.question}</div>
               <div style={{ fontSize: 13.5, color: "var(--text-primary)", lineHeight: 1.5 }}>{c.answer}</div>
-              {c.from_user && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>asked by {c.from_user}</div>}
+              {c.from_user && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>{t(language, "people.askedBy")} {c.from_user}</div>}
             </div>
           ))}
         </div>
       )}
 
       {/* Bookings */}
-      <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 12px" }}>Reservations</h2>
+      <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 12px" }}>{t(language, "people.reservations")}</h2>
       {p.bookings.length === 0 ? (
-        <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>No reservations.</p>
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{t(language, "people.noReservations")}</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {p.bookings.map((b, i) => (
@@ -137,7 +138,7 @@ function Stat({ icon: Icon, value, label }) {
   );
 }
 
-export default function TeamDirectory() {
+export default function TeamDirectory({ language = "en" }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -154,7 +155,7 @@ export default function TeamDirectory() {
   if (selected) {
     return (
       <div style={{ height: "100%", overflowY: "auto" }} className="chat-scroll">
-        <ProfileView id={selected} onBack={() => setSelected(null)} />
+        <ProfileView id={selected} onBack={() => setSelected(null)} language={language} />
       </div>
     );
   }
@@ -162,12 +163,12 @@ export default function TeamDirectory() {
   return (
     <div style={{ height: "100%", overflowY: "auto" }} className="chat-scroll">
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 20px 40px" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px" }}>People</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 4px" }}>{t(language, "people.title")}</h1>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 22px" }}>
-          The lab team — their expertise and what they've contributed. Click anyone to see their profile.
+          {t(language, "people.subtitle")}
         </p>
 
-        {loading && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading…</p>}
+        {loading && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{t(language, "common.loading")}</p>}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 12 }}>
           {members.map((m) => {
@@ -190,7 +191,7 @@ export default function TeamDirectory() {
                   <Avatar name={m.name} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {m.name} {isMe && <span style={{ fontSize: 11, color: "var(--accent)" }}>(you)</span>}
+                      {m.name} {isMe && <span style={{ fontSize: 11, color: "var(--accent)" }}>({t(language, "common.you")})</span>}
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
                       {m.role}
@@ -203,9 +204,9 @@ export default function TeamDirectory() {
                 <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{m.team}</div>
                 <Tags expertise={m.expertise} />
                 <div style={{ display: "flex", gap: 14, marginTop: 2, fontSize: 11.5, color: "var(--text-secondary)" }}>
-                  <span>💡 {m.answers} answers</span>
-                  <span>📅 {m.bookings} bookings</span>
-                  {m.open_questions > 0 && <span style={{ color: "#EF4444" }}>● {m.open_questions} pending</span>}
+                  <span>💡 {m.answers} {t(language, "people.answers")}</span>
+                  <span>📅 {m.bookings} {t(language, "people.bookings")}</span>
+                  {m.open_questions > 0 && <span style={{ color: "#EF4444" }}>● {m.open_questions} {t(language, "people.pending")}</span>}
                 </div>
               </button>
             );
