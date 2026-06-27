@@ -25,6 +25,59 @@ const SENTIMENT_ORDER = [
   "negative",
 ];
 
+// Data-source filter for the header dropdown.
+const SOURCE_OPTIONS = [
+  { key: "all", label: "All data" },
+  { key: "live", label: "Live data" },
+  { key: "demo", label: "Demo data" },
+];
+const SOURCE_LABELS = Object.fromEntries(
+  SOURCE_OPTIONS.map((o) => [o.key, o.label])
+);
+
+// Compact dropdown for the attribute filters (type / team / person). Styled to
+// match the period pills; "all" reads as neutral, a real choice turns blue.
+function FilterSelect({ label, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.key === value) || options[0];
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="text-sm px-3 py-1 rounded-full border border-gray-300 hover:bg-gray-50 flex items-center gap-1.5"
+      >
+        <span className="text-gray-400">{label}:</span>
+        <span className={value !== "all" ? "text-roche font-medium" : "text-gray-700"}>
+          {current?.label}
+        </span>
+        <span className="text-[9px] leading-none text-gray-400">▾</span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 mt-1 w-48 max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-20">
+            {options.map((opt, idx) => (
+              <button
+                key={opt.key}
+                onClick={() => {
+                  onChange(opt.key);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between text-left text-sm px-4 py-2 hover:bg-gray-50 ${
+                  idx > 0 ? "border-t border-gray-100" : ""
+                } ${value === opt.key ? "text-roche font-medium" : "text-gray-700"}`}
+              >
+                {opt.label}
+                {value === opt.key && <span>✓</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function cap(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
@@ -245,12 +298,35 @@ export default function Dashboard() {
   const [range, setRange] = useState("all"); // all | week | month | year | custom
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [source, setSource] = useState("all"); // all | live | demo
+  const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
+  // Attribute filters: feedback type (sentiment), person and team. Collapsed
+  // behind a "Filters" toggle by default to keep the header quiet.
+  const [sentiment, setSentiment] = useState("all");
+  const [author, setAuthor] = useState("all");
+  const [team, setTeam] = useState("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Full feedback list (newest first) + how many rows are shown in "Recent
+  // feedback". Starts collapsed at 10 and grows by 10 each "Show more".
+  const [allFeedback, setAllFeedback] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(10);
 
   async function load() {
     setLoading(true);
     try {
-      const res = await api.analytics(computeRange(range, customStart, customEnd));
+      const params = {
+        ...computeRange(range, customStart, customEnd),
+        source, sentiment, author, team,
+      };
+      // Pull the aggregates and the full raw feedback in parallel; the raw
+      // list powers the expandable "Recent feedback" section.
+      const [res, entries] = await Promise.all([
+        api.analytics(params),
+        api.entries(params),
+      ]);
       setData(res);
+      setAllFeedback([...(entries || [])].reverse()); // newest first
+      setVisibleCount(10); // re-collapse whenever the period changes
       setError("");
     } catch (e) {
       setError(e.message);
@@ -259,17 +335,18 @@ export default function Dashboard() {
     }
   }
 
-  // Reload whenever the period filter changes (and on first mount).
+  // Reload whenever any filter changes (and on mount).
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, customStart, customEnd]);
+  }, [range, customStart, customEnd, source, sentiment, author, team]);
 
   async function downloadCsv() {
     try {
-      const entries = await api.entries(
-        computeRange(range, customStart, customEnd)
-      );
+      const entries = await api.entries({
+        ...computeRange(range, customStart, customEnd),
+        source, sentiment, author, team,
+      });
       downloadEntriesCsv(entries);
     } catch (e) {
       alert("Could not export raw feedback: " + e.message);
@@ -306,6 +383,12 @@ export default function Dashboard() {
   );
   const topics = data.topics || [];
   const confusion = data.confusion || [];
+  const activeFilterCount = [
+    range !== "all",
+    sentiment !== "all",
+    author !== "all",
+    team !== "all",
+  ].filter(Boolean).length;
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
@@ -321,9 +404,47 @@ export default function Dashboard() {
           </div>
           <div className="text-right">
             <div className="flex items-center gap-2 justify-end">
-              <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">
-                {data.demo ? "Demo data" : "Live data"}
-              </span>
+              {/* Data-source dropdown — All / Live / Demo. Lets IT inspect the
+                  real feedback, the demo set, or both, without visual clutter. */}
+              <div className="relative">
+                <button
+                  onClick={() => setSourceMenuOpen((o) => !o)}
+                  title="Choose which data to show"
+                  className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 flex items-center gap-1.5"
+                >
+                  {SOURCE_LABELS[source]}
+                  <span className="text-[9px] leading-none">▾</span>
+                </button>
+                {sourceMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setSourceMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20 overflow-hidden">
+                      {SOURCE_OPTIONS.map((opt, idx) => (
+                        <button
+                          key={opt.key}
+                          onClick={() => {
+                            setSource(opt.key);
+                            setSourceMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between text-left text-sm px-4 py-2.5 hover:bg-gray-50 ${
+                            idx > 0 ? "border-t border-gray-100" : ""
+                          } ${
+                            source === opt.key
+                              ? "text-roche font-medium"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          {opt.label}
+                          {source === opt.key && <span>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               {total > 0 && (
                 <div className="relative">
                   <button
@@ -374,49 +495,103 @@ export default function Dashboard() {
             </div>
             {data.first_date && (
               <p className="text-xs text-gray-400 mt-1.5">
+                <span className="text-gray-500 font-medium">Data:</span>{" "}
                 {fmtDate(data.first_date)} — {fmtDate(data.last_date)}
               </p>
             )}
           </div>
         </div>
 
+        {/* All filters (period + attributes) collapsed behind one toggle. */}
         <div className="max-w-5xl mx-auto mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-500 mr-1">Period:</span>
-          {[
-            { key: "all", label: "All time" },
-            { key: "week", label: "Last week" },
-            { key: "month", label: "Last month" },
-            { key: "year", label: "Last year" },
-            { key: "custom", label: "Custom" },
-          ].map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setRange(opt.key)}
-              className={`text-sm px-3 py-1 rounded-full border ${
-                range === opt.key
-                  ? "bg-roche text-white border-roche"
-                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-          {range === "custom" && (
-            <div className="flex items-center gap-2 ml-1">
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="text-sm px-2 py-1 border border-gray-300 rounded-md text-gray-700"
+          <button
+            onClick={() => setFiltersOpen((o) => !o)}
+            className="text-sm px-3 py-1 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"
+          >
+            <span>Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="text-xs bg-roche text-white rounded-full px-1.5 leading-5">
+                {activeFilterCount}
+              </span>
+            )}
+            <span className="text-[9px] leading-none text-gray-400">
+              {filtersOpen ? "▴" : "▾"}
+            </span>
+          </button>
+          {filtersOpen && (
+            <>
+              <FilterSelect
+                label="Period"
+                value={range}
+                onChange={setRange}
+                options={[
+                  { key: "all", label: "All time" },
+                  { key: "week", label: "Last week" },
+                  { key: "month", label: "Last month" },
+                  { key: "year", label: "Last year" },
+                  { key: "custom", label: "Custom…" },
+                ]}
               />
-              <span className="text-gray-400 text-sm">→</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="text-sm px-2 py-1 border border-gray-300 rounded-md text-gray-700"
+              {range === "custom" && (
+                <div className="flex items-center gap-2 ml-1">
+                  <input
+                    type="date"
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    className="text-sm px-2 py-1 border border-gray-300 rounded-md text-gray-700"
+                  />
+                  <span className="text-gray-400 text-sm">→</span>
+                  <input
+                    type="date"
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    className="text-sm px-2 py-1 border border-gray-300 rounded-md text-gray-700"
+                  />
+                </div>
+              )}
+              <FilterSelect
+                label="Type"
+                value={sentiment}
+                onChange={setSentiment}
+                options={[
+                  { key: "all", label: "All types" },
+                  ...SENTIMENT_ORDER.map((s) => ({ key: s, label: cap(s) })),
+                ]}
               />
-            </div>
+              <FilterSelect
+                label="Team"
+                value={team}
+                onChange={setTeam}
+                options={[
+                  { key: "all", label: "All teams" },
+                  ...(data.teams || []).map((tm) => ({ key: tm, label: tm })),
+                ]}
+              />
+              <FilterSelect
+                label="Person"
+                value={author}
+                onChange={setAuthor}
+                options={[
+                  { key: "all", label: "All people" },
+                  ...(data.authors || []).map((a) => ({ key: a, label: a })),
+                ]}
+              />
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={() => {
+                    setRange("all");
+                    setCustomStart("");
+                    setCustomEnd("");
+                    setSentiment("all");
+                    setTeam("all");
+                    setAuthor("all");
+                  }}
+                  className="text-sm px-3 py-1 rounded-full text-gray-500 hover:text-roche hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -571,11 +746,11 @@ export default function Dashboard() {
           title="Recent feedback"
           subtitle="Newest comments left by scientists."
         >
-          {(!data.recent || data.recent.length === 0) && (
+          {allFeedback.length === 0 && (
             <p className="text-sm text-gray-400">Nothing to show yet.</p>
           )}
           <ul className="divide-y divide-gray-100">
-            {(data.recent || []).map((item, i) => (
+            {allFeedback.slice(0, visibleCount).map((item, i) => (
               <li key={i} className="py-3 flex items-start gap-3">
                 <span
                   className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
@@ -592,7 +767,9 @@ export default function Dashboard() {
                       item.topic,
                       item.rating != null ? `${item.rating}/5` : null,
                       fmtDate(item.timestamp),
-                      item.reason,
+                      // The reason already headlines the row when it's the
+                      // message text, so don't repeat it in the meta line.
+                      item.reason !== item.message ? item.reason : null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}
@@ -606,6 +783,26 @@ export default function Dashboard() {
               </li>
             ))}
           </ul>
+          {allFeedback.length > 10 && (
+            <div className="pt-3 mt-1 border-t border-gray-100 flex justify-center gap-5">
+              {visibleCount < allFeedback.length && (
+                <button
+                  onClick={() => setVisibleCount((c) => c + 10)}
+                  className="text-sm text-roche font-medium hover:underline"
+                >
+                  Show more ({allFeedback.length - visibleCount} more)
+                </button>
+              )}
+              {visibleCount > 10 && (
+                <button
+                  onClick={() => setVisibleCount(10)}
+                  className="text-sm text-gray-500 font-medium hover:underline"
+                >
+                  Show less
+                </button>
+              )}
+            </div>
+          )}
         </Card>
       </div>
     </div>

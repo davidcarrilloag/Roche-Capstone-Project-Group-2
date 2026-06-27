@@ -12,10 +12,15 @@ Safe to run: if a feedback file already exists with data, it is backed up to
 feedback.backup.jsonl before being replaced.
 
 Run (from backend/, with the venv active):
-    python scripts/seed_feedback.py             # load demo data
+    python scripts/seed_feedback.py             # replace store with demo data
+    python scripts/seed_feedback.py --append    # add demo on top, keep live data
     python scripts/seed_feedback.py --clear     # remove demo data, keep real feedback
     python scripts/seed_feedback.py --clear-all # handover: wipe EVERYTHING
                                                 # (demo + test), backup first
+
+The dashboard's Live / Demo / All filter reads the `seed` flag, so --append
+lets you show real and demo feedback side by side. For the Roche handover,
+run --clear (drop demo, keep real) or --clear-all (start fully clean).
 """
 
 from __future__ import annotations
@@ -28,9 +33,14 @@ from pathlib import Path
 # Make the backend package importable when run as a script.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from db import SYNTHETIC_MEMBERS  # noqa: E402
 from services.feedback_store import FeedbackStore  # noqa: E402
 
 random.seed(29)  # deterministic: same demo data on every machine
+
+# Scientists give the feedback (IT teams answer it), so attribute demo
+# feedback to the lab scientists and their teams for the person/team filters.
+SCIENTISTS = [m for m in SYNTHETIC_MEMBERS if not m["team"].startswith("IT")]
 
 LANGUAGES = ["en", "en", "en", "en", "de", "de", "fr", "it"]  # weighted
 
@@ -146,15 +156,25 @@ def clear_all() -> None:
     print(f"Backed up previous data to {backup}; the feedback store is now empty.")
 
 
-def main() -> None:
+def main(append: bool = False) -> None:
+    """Seed the demo feedback set.
+
+    By default this replaces the store (backing up any existing data first).
+    With ``append=True`` the demo entries are added on top of whatever is
+    already there, so real (live) feedback is kept alongside the demo — handy
+    for showing the dashboard's Live / Demo / All filter.
+    """
     store = FeedbackStore()
 
-    # Back up any real data before replacing it with the demo set.
-    if store._path.exists() and store._path.stat().st_size > 0:
-        backup = store._path.with_name("feedback.backup.jsonl")
-        backup.write_bytes(store._path.read_bytes())
-        print(f"Existing data backed up to {backup}")
-    store._path.write_text("")
+    if append:
+        print("Append mode: keeping existing feedback, adding demo on top.")
+    else:
+        # Back up any real data before replacing it with the demo set.
+        if store._path.exists() and store._path.stat().st_size > 0:
+            backup = store._path.with_name("feedback.backup.jsonl")
+            backup.write_bytes(store._path.read_bytes())
+            print(f"Existing data backed up to {backup}")
+        store._path.write_text("")
 
     now = datetime.now(timezone.utc)
     start = now - timedelta(weeks=8)
@@ -188,6 +208,7 @@ def main() -> None:
                     comment = random.choice(
                         COMMENTS.get(reason, ["No further detail."])
                     )
+            who = random.choice(SCIENTISTS)
             store.add(
                 session_id=f"demo-{week}-{n}",
                 message=message,
@@ -197,6 +218,8 @@ def main() -> None:
                 comment=comment,
                 topic=topic,
                 language=random.choice(LANGUAGES),
+                author=who["name"],
+                team=who["team"],
                 timestamp=ts.isoformat(),
                 seed=True,
             )
@@ -212,4 +235,4 @@ if __name__ == "__main__":
     elif "--clear" in sys.argv:
         clear_seeded()
     else:
-        main()
+        main(append="--append" in sys.argv)

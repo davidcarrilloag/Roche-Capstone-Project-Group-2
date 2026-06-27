@@ -38,6 +38,8 @@ class FeedbackStore:
             message_id: Optional[str] = None,
             topic: Optional[str] = None,
             language: Optional[str] = None,
+            author: Optional[str] = None,
+            team: Optional[str] = None,
             timestamp: Optional[str] = None,
             seed: bool = False) -> dict:
         entry = {
@@ -50,6 +52,8 @@ class FeedbackStore:
             "message_id": message_id,
             "topic": topic,
             "language": language,
+            "author": author,
+            "team": team,
             "seed": seed,
             "timestamp": timestamp or datetime.now(timezone.utc).isoformat(),
         }
@@ -59,12 +63,62 @@ class FeedbackStore:
         logger.info("Stored feedback: sentiment=%s session=%s", sentiment, session_id)
         return entry
 
-    def all(self) -> list[dict]:
+    def _read_all_unlocked(self) -> list[dict]:
         if not self._path.exists():
             return []
+        with self._path.open("r", encoding="utf-8") as fh:
+            return [json.loads(line) for line in fh if line.strip()]
+
+    def _write_all_unlocked(self, entries: list[dict]) -> None:
+        with self._path.open("w", encoding="utf-8") as fh:
+            for e in entries:
+                fh.write(json.dumps(e) + "\n")
+
+    def all(self) -> list[dict]:
         with self._lock:
-            with self._path.open("r", encoding="utf-8") as fh:
-                return [json.loads(line) for line in fh if line.strip()]
+            return self._read_all_unlocked()
+
+    def enrich(self, message_id: str, reason: Optional[str] = None,
+               comment: Optional[str] = None,
+               language: Optional[str] = None) -> Optional[dict]:
+        """Fold a downvote's reason/comment into its existing rated entry.
+
+        The chat UI logs a downvote in two steps: the thumb (carries a rating)
+        and then an optional reason chip / free-text comment. To keep the whole
+        dashboard honest — one downvote = one entry everywhere (total, sentiment
+        split, recent feed, needs-attention) — we merge the second step into the
+        original rated row instead of appending a separate one.
+
+        Returns the updated entry, or None when no rated downvote with that
+        message_id exists yet (the caller then falls back to a plain add).
+        """
+        if not message_id:
+            return None
+        with self._lock:
+            entries = self._read_all_unlocked()
+            target = None
+            for e in reversed(entries):
+                if e.get("message_id") == message_id and e.get("rating") is not None:
+                    target = e
+                    break
+            if target is None:
+                return None
+            if reason:
+                target["reason"] = reason
+            if comment:
+                target["comment"] = comment
+            # Surface the most descriptive text as the row's headline: a
+            # free-text comment wins, otherwise the reason chip — both read
+            # better than the generic "Thumbs down on message X" placeholder.
+            if comment:
+                target["message"] = comment
+            elif reason:
+                target["message"] = reason
+            if language:
+                target["language"] = language
+            self._write_all_unlocked(entries)
+        logger.info("Enriched feedback for message_id=%s", message_id)
+        return target
 
     @staticmethod
     def _within(ts: Optional[str], start: Optional[str], end: Optional[str]) -> bool:
@@ -85,17 +139,44 @@ class FeedbackStore:
         return True
 
     def filtered(self, start: Optional[str] = None,
-                 end: Optional[str] = None) -> list[dict]:
-        """All entries, optionally limited to a date range (inclusive)."""
+                 end: Optional[str] = None,
+                 source: Optional[str] = None,
+                 sentiment: Optional[str] = None,
+                 author: Optional[str] = None,
+                 team: Optional[str] = None) -> list[dict]:
+        """Entries, optionally narrowed by date range, source, and attributes.
+
+        `source` selects which dataset to return:
+          - "live"        → real feedback only (seed flag falsy)
+          - "demo"        → seeded demo feedback only
+          - None / "all"  → everything
+        `sentiment`/`author`/`team` keep only entries matching that exact value
+        (None / "" / "all" means no narrowing on that field).
+        """
         entries = self.all()
-        if not start and not end:
-            return entries
-        return [e for e in entries if self._within(e.get("timestamp"), start, end)]
+        if start or end:
+            entries = [e for e in entries
+                       if self._within(e.get("timestamp"), start, end)]
+        if source == "live":
+            entries = [e for e in entries if not e.get("seed")]
+        elif source == "demo":
+            entries = [e for e in entries if e.get("seed")]
+        if sentiment and sentiment != "all":
+            entries = [e for e in entries if e.get("sentiment") == sentiment]
+        if author and author != "all":
+            entries = [e for e in entries if e.get("author") == author]
+        if team and team != "all":
+            entries = [e for e in entries if e.get("team") == team]
+        return entries
 
     NEGATIVE_SENTIMENTS = {"negative", "frustrated", "confused"}
 
     def analytics(self, start: Optional[str] = None,
-                  end: Optional[str] = None) -> dict:
+                  end: Optional[str] = None,
+                  source: Optional[str] = None,
+                  sentiment: Optional[str] = None,
+                  author: Optional[str] = None,
+                  team: Optional[str] = None) -> dict:
         """Aggregated view for the Dashboard page.
 
         Keeps the original keys (total, by_sentiment, average_rating, recent)
@@ -106,7 +187,14 @@ class FeedbackStore:
         An optional date range (start/end as 'YYYY-MM-DD') limits which
         feedback is aggregated, powering the dashboard's period filter.
         """
-        entries = self.filtered(start, end)
+        # `scope` = period + source only; it drives the person/team dropdown
+        # options so every contributor in the period stays selectable even
+        # while a narrow person/team/sentiment filter is active. `entries` is
+        # the fully-narrowed set the aggregates are computed from.
+        scope = self.filtered(start, end, source)
+        entries = self.filtered(start, end, source, sentiment, author, team)
+        authors = sorted({e["author"] for e in scope if e.get("author")})
+        teams = sorted({e["team"] for e in scope if e.get("team")})
         sentiments = Counter(e["sentiment"] for e in entries)
         ratings = [e["rating"] for e in entries if e.get("rating") is not None]
         avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None
@@ -177,6 +265,8 @@ class FeedbackStore:
             "confusion": confusion[:8],
             "by_language": dict(by_language),
             "by_reason": dict(by_reason),
+            "authors": authors,
+            "teams": teams,
             "needs_attention": needs_attention,
             "first_date": min(timestamps) if timestamps else None,
             "last_date": max(timestamps) if timestamps else None,

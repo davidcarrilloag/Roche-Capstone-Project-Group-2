@@ -144,6 +144,16 @@ class FeedbackRequest(BaseModel):
         description="SOP/document the rated answer was based on, e.g. "
         "'SOP-003 Material Return'. Sent by the chat UI when known.",
     )
+    author: Optional[str] = Field(
+        default=None,
+        description="Name of the scientist leaving the feedback (the active "
+        "chat identity). Lets the dashboard filter feedback by person.",
+    )
+    team: Optional[str] = Field(
+        default=None,
+        description="Author's team, e.g. 'Imaging'. Usually resolved from the "
+        "author server-side, so the chat UI need not send it.",
+    )
 
 
 class FeedbackResponse(BaseModel):
