@@ -135,17 +135,30 @@ class FeedbackStore:
         return True
 
     def filtered(self, start: Optional[str] = None,
-                 end: Optional[str] = None) -> list[dict]:
-        """All entries, optionally limited to a date range (inclusive)."""
+                 end: Optional[str] = None,
+                 source: Optional[str] = None) -> list[dict]:
+        """Entries, optionally limited to a date range (inclusive) and source.
+
+        `source` selects which dataset to return:
+          - "live"        → real feedback only (seed flag falsy)
+          - "demo"        → seeded demo feedback only
+          - None / "all"  → everything
+        """
         entries = self.all()
-        if not start and not end:
-            return entries
-        return [e for e in entries if self._within(e.get("timestamp"), start, end)]
+        if start or end:
+            entries = [e for e in entries
+                       if self._within(e.get("timestamp"), start, end)]
+        if source == "live":
+            entries = [e for e in entries if not e.get("seed")]
+        elif source == "demo":
+            entries = [e for e in entries if e.get("seed")]
+        return entries
 
     NEGATIVE_SENTIMENTS = {"negative", "frustrated", "confused"}
 
     def analytics(self, start: Optional[str] = None,
-                  end: Optional[str] = None) -> dict:
+                  end: Optional[str] = None,
+                  source: Optional[str] = None) -> dict:
         """Aggregated view for the Dashboard page.
 
         Keeps the original keys (total, by_sentiment, average_rating, recent)
@@ -156,7 +169,7 @@ class FeedbackStore:
         An optional date range (start/end as 'YYYY-MM-DD') limits which
         feedback is aggregated, powering the dashboard's period filter.
         """
-        entries = self.filtered(start, end)
+        entries = self.filtered(start, end, source)
         sentiments = Counter(e["sentiment"] for e in entries)
         ratings = [e["rating"] for e in entries if e.get("rating") is not None]
         avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None

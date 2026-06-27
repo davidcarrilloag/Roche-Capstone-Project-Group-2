@@ -1,11 +1,13 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
-// Build a ?start=...&end=... query string from a {start, end} range (either
-// side optional). Returns "" when no dates are set.
-function rangeQuery({ start, end } = {}) {
+// Build a ?start=...&end=...&source=... query string from a
+// {start, end, source} object (all optional). Returns "" when nothing is set.
+// `source` is omitted for "all" since that's the backend default.
+function rangeQuery({ start, end, source } = {}) {
   const u = new URLSearchParams();
   if (start) u.set("start", start);
   if (end) u.set("end", end);
+  if (source && source !== "all") u.set("source", source);
   const s = u.toString();
   return s ? `?${s}` : "";
 }

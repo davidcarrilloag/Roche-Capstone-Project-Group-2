@@ -25,6 +25,16 @@ const SENTIMENT_ORDER = [
   "negative",
 ];
 
+// Data-source filter for the header dropdown.
+const SOURCE_OPTIONS = [
+  { key: "all", label: "All data" },
+  { key: "live", label: "Live data" },
+  { key: "demo", label: "Demo data" },
+];
+const SOURCE_LABELS = Object.fromEntries(
+  SOURCE_OPTIONS.map((o) => [o.key, o.label])
+);
+
 function cap(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
@@ -245,12 +255,26 @@ export default function Dashboard() {
   const [range, setRange] = useState("all"); // all | week | month | year | custom
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [source, setSource] = useState("all"); // all | live | demo
+  const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
+  // Full feedback list (newest first) + how many rows are shown in "Recent
+  // feedback". Starts collapsed at 10 and grows by 10 each "Show more".
+  const [allFeedback, setAllFeedback] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(10);
 
   async function load() {
     setLoading(true);
     try {
-      const res = await api.analytics(computeRange(range, customStart, customEnd));
+      const params = { ...computeRange(range, customStart, customEnd), source };
+      // Pull the aggregates and the full raw feedback in parallel; the raw
+      // list powers the expandable "Recent feedback" section.
+      const [res, entries] = await Promise.all([
+        api.analytics(params),
+        api.entries(params),
+      ]);
       setData(res);
+      setAllFeedback([...(entries || [])].reverse()); // newest first
+      setVisibleCount(10); // re-collapse whenever the period changes
       setError("");
     } catch (e) {
       setError(e.message);
@@ -259,16 +283,16 @@ export default function Dashboard() {
     }
   }
 
-  // Reload whenever the period filter changes (and on first mount).
+  // Reload whenever the period or data-source filter changes (and on mount).
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, customStart, customEnd]);
+  }, [range, customStart, customEnd, source]);
 
   async function downloadCsv() {
     try {
       const entries = await api.entries(
-        computeRange(range, customStart, customEnd)
+        { ...computeRange(range, customStart, customEnd), source }
       );
       downloadEntriesCsv(entries);
     } catch (e) {
@@ -321,9 +345,47 @@ export default function Dashboard() {
           </div>
           <div className="text-right">
             <div className="flex items-center gap-2 justify-end">
-              <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">
-                {data.demo ? "Demo data" : "Live data"}
-              </span>
+              {/* Data-source dropdown — All / Live / Demo. Lets IT inspect the
+                  real feedback, the demo set, or both, without visual clutter. */}
+              <div className="relative">
+                <button
+                  onClick={() => setSourceMenuOpen((o) => !o)}
+                  title="Choose which data to show"
+                  className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 flex items-center gap-1.5"
+                >
+                  {SOURCE_LABELS[source]}
+                  <span className="text-[9px] leading-none">▾</span>
+                </button>
+                {sourceMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setSourceMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20 overflow-hidden">
+                      {SOURCE_OPTIONS.map((opt, idx) => (
+                        <button
+                          key={opt.key}
+                          onClick={() => {
+                            setSource(opt.key);
+                            setSourceMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between text-left text-sm px-4 py-2.5 hover:bg-gray-50 ${
+                            idx > 0 ? "border-t border-gray-100" : ""
+                          } ${
+                            source === opt.key
+                              ? "text-roche font-medium"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          {opt.label}
+                          {source === opt.key && <span>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
               {total > 0 && (
                 <div className="relative">
                   <button
@@ -571,11 +633,11 @@ export default function Dashboard() {
           title="Recent feedback"
           subtitle="Newest comments left by scientists."
         >
-          {(!data.recent || data.recent.length === 0) && (
+          {allFeedback.length === 0 && (
             <p className="text-sm text-gray-400">Nothing to show yet.</p>
           )}
           <ul className="divide-y divide-gray-100">
-            {(data.recent || []).map((item, i) => (
+            {allFeedback.slice(0, visibleCount).map((item, i) => (
               <li key={i} className="py-3 flex items-start gap-3">
                 <span
                   className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
@@ -608,6 +670,26 @@ export default function Dashboard() {
               </li>
             ))}
           </ul>
+          {allFeedback.length > 10 && (
+            <div className="pt-3 mt-1 border-t border-gray-100 flex justify-center gap-5">
+              {visibleCount < allFeedback.length && (
+                <button
+                  onClick={() => setVisibleCount((c) => c + 10)}
+                  className="text-sm text-roche font-medium hover:underline"
+                >
+                  Show more ({allFeedback.length - visibleCount} more)
+                </button>
+              )}
+              {visibleCount > 10 && (
+                <button
+                  onClick={() => setVisibleCount(10)}
+                  className="text-sm text-gray-500 font-medium hover:underline"
+                >
+                  Show less
+                </button>
+              )}
+            </div>
+          )}
         </Card>
       </div>
     </div>

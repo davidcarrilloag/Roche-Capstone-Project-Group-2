@@ -90,19 +90,22 @@ async def submit_feedback(
 async def feedback_analytics(
     start: str | None = None,
     end: str | None = None,
+    source: str | None = None,
     store: FeedbackStore = Depends(get_feedback_store),
 ) -> dict:
     """Aggregated feedback metrics consumed by the Dashboard page.
 
     Optional `start`/`end` query params ('YYYY-MM-DD') limit the period.
+    Optional `source` ('live' | 'demo' | 'all') selects which dataset to show.
     """
-    return store.analytics(start, end)
+    return store.analytics(start, end, source)
 
 
 @router.get("/feedback/entries")
 async def feedback_entries(
     start: str | None = None,
     end: str | None = None,
+    source: str | None = None,
     store: FeedbackStore = Depends(get_feedback_store),
 ) -> list[dict]:
     """All raw feedback entries, used by the dashboard's CSV export.
@@ -111,5 +114,6 @@ async def feedback_entries(
     reason, comment, message, ...). The frontend turns this into a CSV.
     Optional `start`/`end` query params ('YYYY-MM-DD') limit the period so the
     CSV matches whatever date filter is active on the dashboard.
+    Optional `source` ('live' | 'demo' | 'all') matches the dashboard's view.
     """
-    return store.filtered(start, end)
+    return store.filtered(start, end, source)
