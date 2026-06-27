@@ -11,11 +11,11 @@ import AnnouncementsBar from "../components/AnnouncementsBar.jsx";
 import ITSupport from "../components/ITSupport.jsx";
 import PerspectiveLanding from "../components/PerspectiveLanding.jsx";
 import { getIdentity } from "../components/IdentityPicker.jsx";
-import { listColleagueRequests } from "../api.js";
+import { listColleagueRequests, membersDirectory } from "../api.js";
 import { t } from "../i18n.js";
 import rocheLogoWhite from "../assets/Roche_Logo_White.png";
 import { generateTitle } from "../api.js";
-import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2, CalendarDays, Inbox, Users, Headset } from "lucide-react";
+import { MessageSquare, FileText, Settings, Globe, RotateCcw, Search, Menu, Sun, Moon, ChevronUp, Check, Trash2, CalendarDays, Inbox, Users, Headset, BarChart3 } from "lucide-react";
 
 function genId() {
   return Math.random().toString(36).slice(2, 11);
@@ -656,6 +656,9 @@ export default function Chat() {
   const [openDoc, setOpenDoc] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inboxCount, setInboxCount] = useState(0);
+  // True when the active perspective is an IT person — the Feedback dashboard
+  // is an IT operations view, so we only surface its link to IT.
+  const [isIT, setIsIT] = useState(false);
   const [perspectiveOpen, setPerspectiveOpen] = useState(() => {
     try { return !localStorage.getItem("perspectiveChosen"); } catch { return false; }
   });
@@ -670,6 +673,21 @@ export default function Chat() {
     listColleagueRequests({ member: me, status: "open" })
       .then((r) => setInboxCount((r || []).length))
       .catch(() => {});
+  }, [activeTab]);
+
+  // Is the current identity part of the IT team? (team starts with "IT")
+  useEffect(() => {
+    const me = getIdentity();
+    if (!me) {
+      setIsIT(false);
+      return;
+    }
+    membersDirectory()
+      .then((list) => {
+        const m = (list || []).find((x) => x.name === me);
+        setIsIT(!!(m && (m.team || "").startsWith("IT")));
+      })
+      .catch(() => setIsIT(false));
   }, [activeTab]);
 
   // Voice + ticket preferences (persisted in this browser).
@@ -946,6 +964,14 @@ export default function Chat() {
               onClick={() => setActiveTab("inbox")}
               badge={inboxCount}
             />
+            {/* Feedback dashboard — IT operations view, shown only to IT. */}
+            {isIT && (
+              <NavLink
+                icon={<BarChart3 size={16} strokeWidth={1.5} />}
+                label={t(language, "nav.dashboard")}
+                to="/dashboard"
+              />
+            )}
           </nav>
 
           {/* Chat history list — scrollable, fills remaining space */}
