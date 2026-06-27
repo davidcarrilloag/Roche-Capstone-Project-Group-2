@@ -112,6 +112,27 @@ SYNTHETIC_MEMBERS = [
 ]
 
 
+def team_for_member(name: Optional[str]) -> Optional[str]:
+    """Resolve a member's team from their name (DB first, static roster fallback).
+
+    Used to tag incoming feedback with the author's team so the dashboard can
+    filter feedback by team (e.g. 'Imaging'). Returns None if unknown.
+    """
+    if not name:
+        return None
+    try:
+        with Session(engine) as session:
+            m = session.exec(select(LabMember).where(LabMember.name == name)).first()
+            if m:
+                return m.team
+    except Exception:  # never let a lookup break feedback storage
+        pass
+    for m in SYNTHETIC_MEMBERS:
+        if m["name"] == name:
+            return m["team"]
+    return None
+
+
 def init_db() -> None:
     """Create tables, seed missing roster members, and seed the demo world once."""
     SQLModel.metadata.create_all(engine)

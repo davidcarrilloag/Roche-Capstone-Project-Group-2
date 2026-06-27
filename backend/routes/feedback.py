@@ -10,6 +10,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 
+from db import team_for_member
 from models.schemas import FeedbackRequest, FeedbackResponse
 from services.feedback_store import FeedbackStore, get_feedback_store
 from services.sentiment import SentimentService, get_sentiment_service
@@ -72,6 +73,11 @@ async def submit_feedback(
     if not tone or tone == "auto":
         tone = sentiment.analyze(message) if message else "neutral"
 
+    # Tag the feedback with its author + team so the dashboard can filter by
+    # person/team. The team is resolved from the author unless explicitly sent.
+    author = request.author
+    team = request.team or team_for_member(author)
+
     store.add(
         session_id=request.session_id or "web",
         message=message or "",
@@ -82,6 +88,8 @@ async def submit_feedback(
         message_id=request.message_id,
         language=language,
         topic=request.topic,
+        author=author,
+        team=team,
     )
     return FeedbackResponse(sentiment=tone)
 
@@ -91,14 +99,18 @@ async def feedback_analytics(
     start: str | None = None,
     end: str | None = None,
     source: str | None = None,
+    sentiment: str | None = None,
+    author: str | None = None,
+    team: str | None = None,
     store: FeedbackStore = Depends(get_feedback_store),
 ) -> dict:
     """Aggregated feedback metrics consumed by the Dashboard page.
 
     Optional `start`/`end` query params ('YYYY-MM-DD') limit the period.
     Optional `source` ('live' | 'demo' | 'all') selects which dataset to show.
+    Optional `sentiment`/`author`/`team` narrow the feedback further.
     """
-    return store.analytics(start, end, source)
+    return store.analytics(start, end, source, sentiment, author, team)
 
 
 @router.get("/feedback/entries")
@@ -106,6 +118,9 @@ async def feedback_entries(
     start: str | None = None,
     end: str | None = None,
     source: str | None = None,
+    sentiment: str | None = None,
+    author: str | None = None,
+    team: str | None = None,
     store: FeedbackStore = Depends(get_feedback_store),
 ) -> list[dict]:
     """All raw feedback entries, used by the dashboard's CSV export.
@@ -115,5 +130,6 @@ async def feedback_entries(
     Optional `start`/`end` query params ('YYYY-MM-DD') limit the period so the
     CSV matches whatever date filter is active on the dashboard.
     Optional `source` ('live' | 'demo' | 'all') matches the dashboard's view.
+    Optional `sentiment`/`author`/`team` match the dashboard's active filters.
     """
-    return store.filtered(start, end, source)
+    return store.filtered(start, end, source, sentiment, author, team)

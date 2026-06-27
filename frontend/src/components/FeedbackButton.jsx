@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { submitFeedback } from "../api.js";
+import { getIdentity } from "./IdentityPicker.jsx";
 import { ThumbsUp, ThumbsDown, X, Send } from "lucide-react";
 
 const NEGATIVE_REASON_CHIPS = [
@@ -35,7 +36,7 @@ export default function FeedbackButton({ messageId, topic }) {
     if (kind === selected || busy) return;
     setBusy(true);
     try {
-      await submitFeedback(messageId, kind === "up" ? 1 : -1, null, null, topic);
+      await submitFeedback(messageId, kind === "up" ? 1 : -1, null, null, topic, getIdentity());
     } catch (e) {
       console.error("Feedback error:", e);
     } finally {
@@ -52,7 +53,7 @@ export default function FeedbackButton({ messageId, topic }) {
     // purpose: the thumb already logged the rating + topic, so this keeps the
     // per-topic counts accurate (one downvote = one topic count).
     try {
-      await submitFeedback(messageId, null, null, reason, null);
+      await submitFeedback(messageId, null, null, reason, null, getIdentity());
     } catch (e) {
       console.error("Feedback reason error:", e);
     } finally {
@@ -69,7 +70,7 @@ export default function FeedbackButton({ messageId, topic }) {
     // shows in the recent-feedback feed and feeds the dashboard's language
     // detection. No rating/topic here for the same reason as above.
     try {
-      await submitFeedback(messageId, null, comment, null, null);
+      await submitFeedback(messageId, null, comment, null, null, getIdentity());
     } catch (e) {
       console.error("Feedback comment error:", e);
     } finally {

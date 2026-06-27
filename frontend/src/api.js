@@ -1,13 +1,16 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
-// Build a ?start=...&end=...&source=... query string from a
-// {start, end, source} object (all optional). Returns "" when nothing is set.
-// `source` is omitted for "all" since that's the backend default.
-function rangeQuery({ start, end, source } = {}) {
+// Build a query string from a {start, end, source, sentiment, author, team}
+// object (all optional). Returns "" when nothing is set. "all"/empty values
+// are omitted since they're the backend default (no narrowing).
+function rangeQuery({ start, end, source, sentiment, author, team } = {}) {
   const u = new URLSearchParams();
   if (start) u.set("start", start);
   if (end) u.set("end", end);
   if (source && source !== "all") u.set("source", source);
+  if (sentiment && sentiment !== "all") u.set("sentiment", sentiment);
+  if (author && author !== "all") u.set("author", author);
+  if (team && team !== "all") u.set("team", team);
   const s = u.toString();
   return s ? `?${s}` : "";
 }
@@ -51,11 +54,12 @@ export function sendMessage(query, language = "en", sessionId = "", history = []
   });
 }
 
-export function submitFeedback(messageId, rating, comment, reason, topic) {
+export function submitFeedback(messageId, rating, comment, reason, topic, author) {
   const body = { message_id: messageId, rating };
   if (comment) body.comment = comment;
   if (reason) body.reason = reason;
   if (topic) body.topic = topic;
+  if (author) body.author = author; // active chat identity → filter by person/team
   return request("/feedback", {
     method: "POST",
     body: JSON.stringify(body),

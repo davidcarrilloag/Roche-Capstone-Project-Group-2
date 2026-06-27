@@ -33,9 +33,14 @@ from pathlib import Path
 # Make the backend package importable when run as a script.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from db import SYNTHETIC_MEMBERS  # noqa: E402
 from services.feedback_store import FeedbackStore  # noqa: E402
 
 random.seed(29)  # deterministic: same demo data on every machine
+
+# Scientists give the feedback (IT teams answer it), so attribute demo
+# feedback to the lab scientists and their teams for the person/team filters.
+SCIENTISTS = [m for m in SYNTHETIC_MEMBERS if not m["team"].startswith("IT")]
 
 LANGUAGES = ["en", "en", "en", "en", "de", "de", "fr", "it"]  # weighted
 
@@ -203,6 +208,7 @@ def main(append: bool = False) -> None:
                     comment = random.choice(
                         COMMENTS.get(reason, ["No further detail."])
                     )
+            who = random.choice(SCIENTISTS)
             store.add(
                 session_id=f"demo-{week}-{n}",
                 message=message,
@@ -212,6 +218,8 @@ def main(append: bool = False) -> None:
                 comment=comment,
                 topic=topic,
                 language=random.choice(LANGUAGES),
+                author=who["name"],
+                team=who["team"],
                 timestamp=ts.isoformat(),
                 seed=True,
             )
