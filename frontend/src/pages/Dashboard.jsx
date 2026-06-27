@@ -592,7 +592,9 @@ export default function Dashboard() {
                       item.topic,
                       item.rating != null ? `${item.rating}/5` : null,
                       fmtDate(item.timestamp),
-                      item.reason,
+                      // The reason already headlines the row when it's the
+                      // message text, so don't repeat it in the meta line.
+                      item.reason !== item.message ? item.reason : null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}

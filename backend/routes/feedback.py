@@ -28,24 +28,6 @@ async def submit_feedback(
     tone = request.sentiment
     rating = request.rating
 
-    # Chat thumbs feedback: {message_id, rating: +1 (up) / -1 (down)}.
-    # A second call may follow a downvote carrying only a `reason` chip
-    # and/or free-text `comment` (no rating) — record it as negative detail
-    # without fabricating a rating, so averages stay accurate.
-    if request.message_id and message is None:
-        if rating is None and (request.reason or request.comment):
-            tone = "negative"
-            message = request.comment or request.reason or ""
-        else:
-            is_down = rating is not None and rating < 0
-            tone = "negative" if is_down else "satisfied"
-            rating = 1 if is_down else 5
-            message = request.comment or f"Thumbs {'down' if is_down else 'up'} on message {request.message_id}"
-
-    # Otherwise auto-detect sentiment from the text if not provided.
-    if not tone or tone == "auto":
-        tone = sentiment.analyze(message) if message else "neutral"
-
     # Detect the language of free-text feedback (en/de/fr/it) so the
     # dashboard can break feedback down per language. Explicit value wins;
     # detection is best-effort and skipped for very short texts.
@@ -60,6 +42,35 @@ async def submit_feedback(
                 language = detected
         except Exception:  # detection must never break feedback storage
             pass
+
+    # A downvote arrives in two steps: first the thumb (with a rating), then an
+    # optional reason chip / free-text comment (no rating). Fold that second
+    # step into the existing rated entry so one downvote stays a single entry
+    # across the whole dashboard (total, sentiment split, recent, attention).
+    if (request.message_id and message is None and rating is None
+            and (request.reason or request.comment)):
+        enriched = store.enrich(
+            message_id=request.message_id,
+            reason=request.reason,
+            comment=request.comment,
+            language=language,
+        )
+        if enriched is not None:
+            return FeedbackResponse(sentiment=enriched.get("sentiment", "negative"))
+        # No prior rated downvote to attach to — record it as a standalone note.
+        tone = "negative"
+        message = request.comment or request.reason or ""
+
+    # Chat thumbs feedback proper: {message_id, rating: +1 (up) / -1 (down)}.
+    elif request.message_id and message is None:
+        is_down = rating is not None and rating < 0
+        tone = "negative" if is_down else "satisfied"
+        rating = 1 if is_down else 5
+        message = request.comment or f"Thumbs {'down' if is_down else 'up'} on message {request.message_id}"
+
+    # Otherwise auto-detect sentiment from the text if not provided.
+    if not tone or tone == "auto":
+        tone = sentiment.analyze(message) if message else "neutral"
 
     store.add(
         session_id=request.session_id or "web",

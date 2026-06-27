@@ -59,12 +59,62 @@ class FeedbackStore:
         logger.info("Stored feedback: sentiment=%s session=%s", sentiment, session_id)
         return entry
 
-    def all(self) -> list[dict]:
+    def _read_all_unlocked(self) -> list[dict]:
         if not self._path.exists():
             return []
+        with self._path.open("r", encoding="utf-8") as fh:
+            return [json.loads(line) for line in fh if line.strip()]
+
+    def _write_all_unlocked(self, entries: list[dict]) -> None:
+        with self._path.open("w", encoding="utf-8") as fh:
+            for e in entries:
+                fh.write(json.dumps(e) + "\n")
+
+    def all(self) -> list[dict]:
         with self._lock:
-            with self._path.open("r", encoding="utf-8") as fh:
-                return [json.loads(line) for line in fh if line.strip()]
+            return self._read_all_unlocked()
+
+    def enrich(self, message_id: str, reason: Optional[str] = None,
+               comment: Optional[str] = None,
+               language: Optional[str] = None) -> Optional[dict]:
+        """Fold a downvote's reason/comment into its existing rated entry.
+
+        The chat UI logs a downvote in two steps: the thumb (carries a rating)
+        and then an optional reason chip / free-text comment. To keep the whole
+        dashboard honest — one downvote = one entry everywhere (total, sentiment
+        split, recent feed, needs-attention) — we merge the second step into the
+        original rated row instead of appending a separate one.
+
+        Returns the updated entry, or None when no rated downvote with that
+        message_id exists yet (the caller then falls back to a plain add).
+        """
+        if not message_id:
+            return None
+        with self._lock:
+            entries = self._read_all_unlocked()
+            target = None
+            for e in reversed(entries):
+                if e.get("message_id") == message_id and e.get("rating") is not None:
+                    target = e
+                    break
+            if target is None:
+                return None
+            if reason:
+                target["reason"] = reason
+            if comment:
+                target["comment"] = comment
+            # Surface the most descriptive text as the row's headline: a
+            # free-text comment wins, otherwise the reason chip — both read
+            # better than the generic "Thumbs down on message X" placeholder.
+            if comment:
+                target["message"] = comment
+            elif reason:
+                target["message"] = reason
+            if language:
+                target["language"] = language
+            self._write_all_unlocked(entries)
+        logger.info("Enriched feedback for message_id=%s", message_id)
+        return target
 
     @staticmethod
     def _within(ts: Optional[str], start: Optional[str], end: Optional[str]) -> bool:
