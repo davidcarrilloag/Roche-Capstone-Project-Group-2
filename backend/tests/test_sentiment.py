@@ -1,8 +1,8 @@
 """
 Unit tests for SentimentService — emotional tone classification.
 
-Uses the keyword heuristic fallback (no Groq key) so tests are fully
-deterministic and require no network access or API keys.
+The service uses a keyword heuristic, so tests are fully deterministic and
+require no network access or API keys.
 
 Labels: positive, negative, neutral, frustrated, confused, satisfied
 Expected result: ~70% accuracy (14/20).
@@ -11,16 +11,13 @@ Edge cases expose sarcasm and implicit frustration the heuristic misses.
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock
 
 from services.sentiment import SentimentService
 
 
 @pytest.fixture(scope="module")
 def svc():
-    settings = MagicMock()
-    settings.has_groq = False
-    return SentimentService(settings=settings)
+    return SentimentService()
 
 
 @pytest.mark.parametrize("message,expected", [

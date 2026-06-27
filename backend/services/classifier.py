@@ -2,7 +2,10 @@
 Intent classifier: decides whether a scientist's message is a knowledge
 QUESTION (route to RAG) or FEEDBACK (route to the feedback service).
 
-Owner: shared (used by the chat route). The AI/analytics owners can tune the prompt.
+Owner: shared (used by the chat route).
+
+Uses a fast keyword heuristic — deterministic, offline, and good enough for the
+clear majority of messages (see backend/tests).
 
 Examples
 --------
@@ -13,65 +16,25 @@ Feedback : "This process is confusing."      -> "feedback"
 
 from __future__ import annotations
 
-import logging
 from typing import Optional
 
 from config import Settings, get_settings
 
-logger = logging.getLogger(__name__)
-
-_PROMPT = (
-    "Classify the scientist's message as either 'question' or 'feedback'.\n"
-    "- 'question' = they want information or how-to help from documentation.\n"
-    "- 'feedback' = they are expressing an opinion, complaint, frustration, "
-    "or comment about a tool/process rather than asking for information.\n"
-    "Respond with ONLY one word: question or feedback.\n\n"
-    "Message: {text}"
-)
-
 
 class IntentClassifier:
-    """Question vs feedback classification, Groq-backed with a heuristic fallback."""
+    """Question vs feedback classification with a keyword heuristic."""
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         self.settings = settings or get_settings()
-        self._llm = None
-
-    def _get_llm(self):
-        if self._llm is None and self.settings.has_groq:
-            from langchain_groq import ChatGroq
-
-            self._llm = ChatGroq(
-                api_key=self.settings.groq_api_key,
-                model=self.settings.groq_model,
-                temperature=0.0,
-            )
-        return self._llm
 
     def classify(self, text: str) -> str:
         """Return 'question' or 'feedback'."""
         if not text or not text.strip():
             return "question"
-
-        # Fast path: clear cases never need an LLM round trip.
         quick = self._quick(text)
         if quick is not None:
             return quick
-
-        # Only ambiguous messages reach the LLM (and fall back to the heuristic).
-        llm = self._get_llm()
-        if llm is None:
-            return self._heuristic(text)
-
-        from langchain_core.messages import HumanMessage
-
-        try:
-            resp = llm.invoke([HumanMessage(content=_PROMPT.format(text=text))])
-            label = resp.content.strip().lower()
-            return "feedback" if "feedback" in label else "question"
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.exception("Intent LLM call failed, using heuristic: %s", exc)
-            return self._heuristic(text)
+        return self._heuristic(text)
 
     @staticmethod
     def _quick(text: str) -> Optional[str]:

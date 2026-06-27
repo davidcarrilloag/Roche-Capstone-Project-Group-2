@@ -5,9 +5,9 @@ message: the **intent classifier** (question vs feedback), the **sentiment**
 detector, and the **incident triage** (category + severity).
 
 > **Run:** `cd backend && python -m pytest tests/ -v` (needs `pip install pytest`).
-> The suite is fully **offline and deterministic** — it forces the keyword
-> heuristic fallback (`has_groq = False`, `has_google = False` via mocked
-> settings), so no API keys, no network, and runs in **~0.4 s**.
+> The suite is fully **offline and deterministic**: intent and sentiment use
+> keyword heuristics directly, and triage is run with its Gemini path disabled
+> (`has_google = False`), so no API keys, no network, and runs in **~0.4 s**.
 
 ---
 
@@ -81,17 +81,19 @@ needs more than keywords**.
 
 ## Key insights (for the report)
 
-1. **The tests quantify the value of the LLM layer.** With *no* AI key at all,
-   the keyword heuristics already get **~77%** of routing/tagging right. The
+1. **The tests quantify the heuristics' accuracy and limits.** With pure keyword
+   logic (no AI), the helpers already get **~77%** of routing/tagging right. The
    remaining ~23% are exactly the nuanced cases — **sarcasm, implicit
    frustration, phrasing variants, category collisions, and contextual
-   severity** — which is precisely what the Groq/Gemini LLM is there to handle.
-   The failing edge cases are a concrete, measurable argument for the AI layer.
+   severity** — which keyword matching cannot capture. For **triage**, the Gemini
+   model is the primary path and these heuristics are only the fallback, so the
+   edge cases show precisely what Gemini buys you. For **intent and sentiment**
+   (heuristic-only by design), they mark clear candidates for an LLM upgrade.
 
-2. **Validated graceful degradation.** Even if the LLM is unavailable (no key,
-   rate-limited, offline), the assistant still classifies the majority of
-   messages correctly and never crashes. The system *degrades*, it doesn't
-   *break* — a deliberate design choice, now backed by numbers.
+2. **Validated graceful degradation.** Even with no AI at all (triage offline /
+   rate-limited, or the lightweight helpers), the assistant still classifies the
+   majority of messages correctly and never crashes. The system *degrades*, it
+   doesn't *break* — a deliberate design choice, now backed by numbers.
 
 3. **The edge cases are living documentation.** Each one is commented with the
    actual heuristic output vs the ideal, so the test file doubles as a precise
@@ -113,8 +115,9 @@ needs more than keywords**.
   (expected failure) so the suite shows green in CI while still recording the gap.
 - **Add `pytest` to a `requirements-dev.txt`** so any teammate can run the suite
   (`pip install -r requirements-dev.txt`).
-- **Measure the LLM uplift**: run the same cases with `has_groq`/`has_google`
-  enabled and report heuristic-vs-LLM accuracy side by side.
+- **Measure the LLM uplift for triage**: run the triage cases with Gemini
+  enabled (`has_google = True`) and report heuristic-vs-Gemini accuracy side by
+  side. (Intent and sentiment are heuristic-only today.)
 - **Grow coverage** over time (multilingual variants, more triage scenarios) to
   strengthen the "verification" story Roche asked for.
 

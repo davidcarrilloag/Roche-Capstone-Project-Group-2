@@ -22,11 +22,6 @@ class Settings:
     """Typed accessor over environment variables with sensible defaults."""
 
     def __init__(self) -> None:
-        # --- LLM (Groq) — used by sentiment / translator / intent classifier ---
-        self.groq_api_key: str = os.getenv("GROQ_API_KEY", "")
-        # Model is overridable so we can swap when Groq rotates model names.
-        self.groq_model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-
         # --- RAG (Gemini via Google AI Studio) ---
         # Document Q&A runs in-process: Gemini embeddings + ChromaDB + Gemini LLM.
         self.google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
@@ -79,11 +74,6 @@ class Settings:
         self.confidence_threshold: float = float(
             os.getenv("CONFIDENCE_THRESHOLD", "0.45")
         )
-
-    @property
-    def has_groq(self) -> bool:
-        """True when a Groq key is configured; services degrade gracefully if not."""
-        return bool(self.groq_api_key)
 
     @property
     def has_google(self) -> bool:

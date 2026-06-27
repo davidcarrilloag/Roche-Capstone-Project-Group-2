@@ -1,8 +1,8 @@
 """
 Unit tests for IntentClassifier — question vs feedback routing.
 
-Uses the heuristic fallback (no Groq key) so tests are fully deterministic
-and require no network access or API keys.
+The classifier uses a keyword heuristic, so tests are fully deterministic and
+require no network access or API keys.
 
 Expected result: ~80% accuracy (16/20).
 The four edge cases at the bottom document known heuristic limitations.
@@ -10,16 +10,13 @@ The four edge cases at the bottom document known heuristic limitations.
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock
 
 from services.classifier import IntentClassifier
 
 
 @pytest.fixture(scope="module")
 def clf():
-    settings = MagicMock()
-    settings.has_groq = False
-    return IntentClassifier(settings=settings)
+    return IntentClassifier()
 
 
 @pytest.mark.parametrize("message,expected", [

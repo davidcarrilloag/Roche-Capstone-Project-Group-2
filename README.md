@@ -83,25 +83,16 @@ An AI-powered assistant that gives Roche scientists **one place** to:
                   │  doc_id·version·date fm │ bridge │  (live docs) │
                   └────────────────────────┘        └──────────────┘
 
-  * Sentiment / Translator / Title / Intent are lightweight helpers. They can
-    optionally use Groq, but Groq is NOT configured in this project — they run
-    on heuristics today (see "A note on Groq" below).
+  * Sentiment / Title / Intent are lightweight **keyword heuristics** (no LLM,
+    deterministic and offline). Translation is unnecessary because the RAG
+    answers directly in the user's language.
 ```
 
 > **The brain is Gemini.** Document Q&A (embeddings + answers) **and** incident
 > triage run on **Google Gemini** via Google AI Studio. ChromaDB is the local
 > vector store. A free `GOOGLE_API_KEY` is the only key you need for the full
-> experience.
-
-### A note on Groq
-
-The codebase contains optional **Groq** integrations for four auxiliary helpers
-— sentiment, intent classification, chat-title generation, and the feedback
-acknowledgement translation. **Groq is not used right now:** there is no
-`GROQ_API_KEY` configured, so `has_groq` is `false` and every one of those
-services falls back to a heuristic (or, for translation, is simply skipped).
-Nothing in the core Q&A / triage path depends on Groq. You can ignore Groq
-entirely; it remains in the code as a drop-in upgrade if a key is ever added.
+> experience. The smaller NLP helpers (intent, sentiment, chat titles) use fast
+> keyword heuristics — no extra keys, no network.
 
 ---
 
@@ -134,10 +125,10 @@ scientist-assistant/
 │   │   ├── gdrive.py           # Google Drive → data/sops sync bridge
 │   │   ├── triage.py           # incident category/severity (Gemini + heuristic)
 │   │   ├── servicenow.py       # incident creation, priority, assignment-group routing
-│   │   ├── classifier.py       # question-vs-feedback intent (heuristic; Groq optional)
-│   │   ├── sentiment.py        # feedback sentiment (heuristic; Groq optional)
-│   │   ├── translator.py       # langdetect + translation (Groq optional)
-│   │   ├── title.py            # chat title generation (heuristic; Groq optional)
+│   │   ├── classifier.py       # question-vs-feedback intent (keyword heuristic)
+│   │   ├── sentiment.py        # feedback sentiment (keyword heuristic)
+│   │   ├── translator.py       # language detection (langdetect)
+│   │   ├── title.py            # chat title generation (heuristic)
 │   │   └── feedback_store.py   # in-memory feedback + analytics
 │   └── models/schemas.py       # Pydantic request/response models
 ├── frontend/                   # React + Vite + Tailwind
@@ -166,7 +157,7 @@ testing). Each file starts with YAML frontmatter: `doc_id`, `title`, `version`,
 - **Python 3.11+**
 - **Node 18+** (the project is developed on Node 24)
 - A free **Gemini API key** for document Q&A — <https://aistudio.google.com/apikey>
-  *(no Groq key needed)*
+  *(the only key needed)*
 
 ### 1. Backend
 
@@ -252,8 +243,6 @@ chat/triage experience; everything else is optional and degrades gracefully.
 | `SERVICENOW_USERNAME` | live tickets | ServiceNow user. |
 | `SERVICENOW_PASSWORD` | live tickets | ServiceNow password. |
 | `MOCK_MODE` | no | `true` → mock ServiceNow responses. Default `true`. |
-| `GROQ_API_KEY` | *optional / unused* | If set, enables Groq for sentiment/intent/title/translation. **Left blank in this project** — those helpers use heuristics. |
-| `GROQ_MODEL` | *optional / unused* | Groq model name if a key is ever added. |
 
 > **Secrets:** `.env`, `backend/secrets/service_account.json`, `chroma_db/` and
 > `drive_cache/` are gitignored. Never commit real keys.

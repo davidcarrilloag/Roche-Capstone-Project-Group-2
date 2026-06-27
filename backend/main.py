@@ -93,8 +93,8 @@ async def on_startup() -> None:
     except Exception as exc:  # never block startup on the DB
         logger.warning("DB init skipped: %s", exc)
     logger.info(
-        "MOCK_MODE=%s | Groq=%s | Gemini/RAG=%s",
-        settings.mock_mode, settings.has_groq, settings.has_google,
+        "MOCK_MODE=%s | Gemini/RAG=%s",
+        settings.mock_mode, settings.has_google,
     )
     logger.info("SOPs path: %s", settings.sops_path)
 
