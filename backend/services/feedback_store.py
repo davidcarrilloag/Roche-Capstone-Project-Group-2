@@ -40,6 +40,7 @@ class FeedbackStore:
             language: Optional[str] = None,
             author: Optional[str] = None,
             team: Optional[str] = None,
+            translations: Optional[dict] = None,
             timestamp: Optional[str] = None,
             seed: bool = False) -> dict:
         entry = {
@@ -54,6 +55,9 @@ class FeedbackStore:
             "language": language,
             "author": author,
             "team": team,
+            # Optional {lang: text} map so the dashboard can show the comment in
+            # the viewer's language while keeping `language` as the original.
+            "translations": translations,
             "seed": seed,
             "timestamp": timestamp or datetime.now(timezone.utc).isoformat(),
         }
@@ -80,7 +84,8 @@ class FeedbackStore:
 
     def enrich(self, message_id: str, reason: Optional[str] = None,
                comment: Optional[str] = None,
-               language: Optional[str] = None) -> Optional[dict]:
+               language: Optional[str] = None,
+               translations: Optional[dict] = None) -> Optional[dict]:
         """Fold a downvote's reason/comment into its existing rated entry.
 
         The chat UI logs a downvote in two steps: the thumb (carries a rating)
@@ -116,6 +121,8 @@ class FeedbackStore:
                 target["message"] = reason
             if language:
                 target["language"] = language
+            if translations:
+                target["translations"] = translations
             self._write_all_unlocked(entries)
         logger.info("Enriched feedback for message_id=%s", message_id)
         return target

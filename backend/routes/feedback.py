@@ -14,6 +14,7 @@ from db import team_for_member
 from models.schemas import FeedbackRequest, FeedbackResponse
 from services.feedback_store import FeedbackStore, get_feedback_store
 from services.sentiment import SentimentService, get_sentiment_service
+from services.translate import translate_comment
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["feedback"])
@@ -44,6 +45,11 @@ async def submit_feedback(
         except Exception:  # detection must never break feedback storage
             pass
 
+    # Translate a free-text comment once, here at write time, reusing the
+    # chat's Gemini key. The dashboard then shows it in any language for free.
+    # No-op (None) in MOCK mode / without a key — the comment stays original.
+    translations = translate_comment(request.comment, language) if request.comment else None
+
     # A downvote arrives in two steps: first the thumb (with a rating), then an
     # optional reason chip / free-text comment (no rating). Fold that second
     # step into the existing rated entry so one downvote stays a single entry
@@ -55,6 +61,7 @@ async def submit_feedback(
             reason=request.reason,
             comment=request.comment,
             language=language,
+            translations=translations,
         )
         if enriched is not None:
             return FeedbackResponse(sentiment=enriched.get("sentiment", "negative"))
@@ -90,6 +97,7 @@ async def submit_feedback(
         topic=request.topic,
         author=author,
         team=team,
+        translations=translations,
     )
     return FeedbackResponse(sentiment=tone)
 

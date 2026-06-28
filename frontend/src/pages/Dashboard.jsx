@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { downloadReportHtml, downloadEntriesCsv } from "../lib/report.js";
+import { dt } from "../dashboardI18n.js";
 
 // Feedback analytics dashboard for IT teams.
 // Reads aggregated data from GET /feedback/analytics.
@@ -34,6 +35,24 @@ const SOURCE_OPTIONS = [
 const SOURCE_LABELS = Object.fromEntries(
   SOURCE_OPTIONS.map((o) => [o.key, o.label])
 );
+
+// Display-language switcher for feedback text. "original" = as written.
+const LANG_OPTIONS = [
+  { key: "original", label: "Original" },
+  { key: "en", label: "English" },
+  { key: "de", label: "Deutsch" },
+  { key: "fr", label: "Français" },
+  { key: "it", label: "Italiano" },
+];
+const LANG_LABELS = Object.fromEntries(LANG_OPTIONS.map((o) => [o.key, o.label]));
+
+// Pick the feedback text to show: the chosen language's translation when
+// available, otherwise the original message (e.g. live feedback isn't
+// translated). Always falls back gracefully so nothing ever shows blank.
+function displayText(item, viewLang) {
+  if (viewLang === "original") return item.message;
+  return (item.translations && item.translations[viewLang]) || item.message;
+}
 
 // Compact dropdown for the attribute filters (type / team / person). Styled to
 // match the period pills; "all" reads as neutral, a real choice turns blue.
@@ -138,14 +157,10 @@ function Stars({ rating }) {
   );
 }
 
-function WeeklyChart({ weekly }) {
+function WeeklyChart({ weekly, emptyText }) {
   const points = (weekly || []).filter((w) => w.avg_rating != null);
   if (points.length < 2) {
-    return (
-      <p className="text-sm text-gray-400">
-        Not enough data yet — the trend appears once feedback spans two weeks.
-      </p>
-    );
+    return <p className="text-sm text-gray-400">{emptyText}</p>;
   }
   const W = 560;
   const H = 180;
@@ -219,7 +234,7 @@ function WeeklyChart({ weekly }) {
   );
 }
 
-function SentimentBar({ label, count, total }) {
+function SentimentBar({ label, count, total, display }) {
   const pct = total ? Math.round((count / total) * 100) : 0;
   return (
     <div className="mb-3">
@@ -229,7 +244,7 @@ function SentimentBar({ label, count, total }) {
             SENTIMENT_STYLES[label] || "bg-gray-100 text-gray-600"
           }`}
         >
-          {cap(label)}
+          {display ?? cap(label)}
         </span>
         <span className="text-gray-500">
           {count} · {pct}%
@@ -300,6 +315,10 @@ export default function Dashboard() {
   const [customEnd, setCustomEnd] = useState("");
   const [source, setSource] = useState("all"); // all | live | demo
   const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
+  // Display language for feedback text: "original" shows it as written, a
+  // language code shows the stored translation. Purely client-side (no refetch).
+  const [viewLang, setViewLang] = useState("original");
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
   // Attribute filters: feedback type (sentiment), person and team. Collapsed
   // behind a "Filters" toggle by default to keep the header quiet.
   const [sentiment, setSentiment] = useState("all");
@@ -310,6 +329,14 @@ export default function Dashboard() {
   // feedback". Starts collapsed at 10 and grows by 10 each "Show more".
   const [allFeedback, setAllFeedback] = useState([]);
   const [visibleCount, setVisibleCount] = useState(10);
+
+  // The whole dashboard follows the language switcher; "original" keeps the
+  // chrome in English while each comment shows as written.
+  const uiLang = viewLang === "original" ? "en" : viewLang;
+  const T = (k, fb) => dt(uiLang, k, fb);
+  const sentLabel = (s) => dt(uiLang, "s." + s, cap(s));
+  const reasonLabel = (r) => (r ? dt(uiLang, "r." + r, r) : r);
+  const topicLabel = (tp) => (tp ? dt(uiLang, "t." + tp, tp) : tp);
 
   async function load() {
     setLoading(true);
@@ -354,18 +381,18 @@ export default function Dashboard() {
   }
 
   if (loading && !data) {
-    return <div className="p-8 text-gray-400">Loading analytics…</div>;
+    return <div className="p-8 text-gray-400">{T("loading")}</div>;
   }
 
   if (error) {
     return (
       <div className="p-8">
-        <p className="text-red-600">Could not load analytics: {error}</p>
+        <p className="text-red-600">{T("error")} {error}</p>
         <button
           onClick={load}
           className="mt-3 px-4 py-2 bg-roche text-white rounded-md text-sm"
         >
-          Retry
+          {T("retry")}
         </button>
       </div>
     );
@@ -396,10 +423,10 @@ export default function Dashboard() {
         <div className="max-w-5xl mx-auto flex items-start justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900">
-              Feedback Analytics
+              {T("title")}
             </h1>
             <p className="text-sm text-gray-500">
-              Roche Scientist Assistant — IT operations view
+              {T("subtitle")}
             </p>
           </div>
           <div className="text-right">
@@ -412,7 +439,7 @@ export default function Dashboard() {
                   title="Choose which data to show"
                   className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 flex items-center gap-1.5"
                 >
-                  {SOURCE_LABELS[source]}
+                  {T("src_" + source)}
                   <span className="text-[9px] leading-none">▾</span>
                 </button>
                 {sourceMenuOpen && (
@@ -437,8 +464,52 @@ export default function Dashboard() {
                               : "text-gray-700"
                           }`}
                         >
-                          {opt.label}
+                          {T("src_" + opt.key)}
                           {source === opt.key && <span>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Display-language switcher — translate all feedback text to the
+                  chosen language (original-language badge is kept on each row). */}
+              <div className="relative">
+                <button
+                  onClick={() => setLangMenuOpen((o) => !o)}
+                  title="Show feedback in this language"
+                  className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 flex items-center gap-1.5"
+                >
+                  <span>🌐</span>
+                  <span className={viewLang !== "original" ? "text-roche" : ""}>
+                    {viewLang === "original" ? T("original") : LANG_LABELS[viewLang]}
+                  </span>
+                  <span className="text-[9px] leading-none">▾</span>
+                </button>
+                {langMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setLangMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20 overflow-hidden">
+                      {LANG_OPTIONS.map((opt, idx) => (
+                        <button
+                          key={opt.key}
+                          onClick={() => {
+                            setViewLang(opt.key);
+                            setLangMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between text-left text-sm px-4 py-2.5 hover:bg-gray-50 ${
+                            idx > 0 ? "border-t border-gray-100" : ""
+                          } ${
+                            viewLang === opt.key
+                              ? "text-roche font-medium"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          {opt.key === "original" ? T("original") : opt.label}
+                          {viewLang === opt.key && <span>✓</span>}
                         </button>
                       ))}
                     </div>
@@ -452,7 +523,7 @@ export default function Dashboard() {
                     title="Download the report or the raw data"
                     className="text-sm px-3 py-1.5 bg-roche text-white rounded-md hover:opacity-90 flex items-center gap-1.5"
                   >
-                    ↓ Download
+                    ↓ {T("download")}
                     <span className="text-[10px] leading-none">▾</span>
                   </button>
                   {menuOpen && (
@@ -470,7 +541,7 @@ export default function Dashboard() {
                           }}
                           className="block w-full text-left text-sm px-4 py-2.5 text-gray-700 hover:bg-gray-50"
                         >
-                          Download report (PDF)
+                          {T("downloadReport")}
                         </button>
                         <button
                           onClick={() => {
@@ -479,7 +550,7 @@ export default function Dashboard() {
                           }}
                           className="block w-full text-left text-sm px-4 py-2.5 text-gray-700 hover:bg-gray-50 border-t border-gray-100"
                         >
-                          Download CSV (raw data)
+                          {T("downloadCsv")}
                         </button>
                       </div>
                     </>
@@ -490,12 +561,12 @@ export default function Dashboard() {
                 onClick={load}
                 className="text-sm px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
-                ↻ Refresh
+                ↻ {T("refresh")}
               </button>
             </div>
             {data.first_date && (
               <p className="text-xs text-gray-400 mt-1.5">
-                <span className="text-gray-500 font-medium">Data:</span>{" "}
+                <span className="text-gray-500 font-medium">{T("data")}</span>{" "}
                 {fmtDate(data.first_date)} — {fmtDate(data.last_date)}
               </p>
             )}
@@ -508,7 +579,7 @@ export default function Dashboard() {
             onClick={() => setFiltersOpen((o) => !o)}
             className="text-sm px-3 py-1 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"
           >
-            <span>Filters</span>
+            <span>{T("filters")}</span>
             {activeFilterCount > 0 && (
               <span className="text-xs bg-roche text-white rounded-full px-1.5 leading-5">
                 {activeFilterCount}
@@ -521,15 +592,15 @@ export default function Dashboard() {
           {filtersOpen && (
             <>
               <FilterSelect
-                label="Period"
+                label={T("lbl_period")}
                 value={range}
                 onChange={setRange}
                 options={[
-                  { key: "all", label: "All time" },
-                  { key: "week", label: "Last week" },
-                  { key: "month", label: "Last month" },
-                  { key: "year", label: "Last year" },
-                  { key: "custom", label: "Custom…" },
+                  { key: "all", label: T("period_all") },
+                  { key: "week", label: T("period_week") },
+                  { key: "month", label: T("period_month") },
+                  { key: "year", label: T("period_year") },
+                  { key: "custom", label: T("period_custom") },
                 ]}
               />
               {range === "custom" && (
@@ -550,29 +621,29 @@ export default function Dashboard() {
                 </div>
               )}
               <FilterSelect
-                label="Type"
+                label={T("lbl_type")}
                 value={sentiment}
                 onChange={setSentiment}
                 options={[
-                  { key: "all", label: "All types" },
-                  ...SENTIMENT_ORDER.map((s) => ({ key: s, label: cap(s) })),
+                  { key: "all", label: T("all_types") },
+                  ...SENTIMENT_ORDER.map((s) => ({ key: s, label: sentLabel(s) })),
                 ]}
               />
               <FilterSelect
-                label="Team"
+                label={T("lbl_team")}
                 value={team}
                 onChange={setTeam}
                 options={[
-                  { key: "all", label: "All teams" },
+                  { key: "all", label: T("all_teams") },
                   ...(data.teams || []).map((tm) => ({ key: tm, label: tm })),
                 ]}
               />
               <FilterSelect
-                label="Person"
+                label={T("lbl_person")}
                 value={author}
                 onChange={setAuthor}
                 options={[
-                  { key: "all", label: "All people" },
+                  { key: "all", label: T("all_people") },
                   ...(data.authors || []).map((a) => ({ key: a, label: a })),
                 ]}
               />
@@ -588,7 +659,7 @@ export default function Dashboard() {
                   }}
                   className="text-sm px-3 py-1 rounded-full text-gray-500 hover:text-roche hover:underline"
                 >
-                  Clear
+                  {T("clear")}
                 </button>
               )}
             </>
@@ -599,16 +670,16 @@ export default function Dashboard() {
       <div className="max-w-5xl mx-auto px-6 py-6 pb-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
-            label="Total feedback"
+            label={T("kpi_total")}
             value={total}
             caption={
               langCount
-                ? `across ${langCount} languages · ${weekCount} weeks`
-                : `over ${weekCount} week${weekCount === 1 ? "" : "s"}`
+                ? `${T("across")} ${langCount} ${T("languages")} · ${weekCount} ${T("weeks")}`
+                : `${T("over")} ${weekCount} ${weekCount === 1 ? T("week") : T("weeks")}`
             }
           />
           <StatCard
-            label="Average rating"
+            label={T("kpi_avg")}
             value={data.average_rating ?? "—"}
             suffix={data.average_rating != null ? "/5" : ""}
           >
@@ -617,40 +688,38 @@ export default function Dashboard() {
             )}
           </StatCard>
           <StatCard
-            label="Satisfaction"
+            label={T("kpi_sat")}
             value={satisfactionPct}
             suffix="%"
-            caption="positive & satisfied replies"
+            caption={T("kpi_sat_caption")}
           />
           <StatCard
-            label="Needs attention"
+            label={T("kpi_attn")}
             value={data.needs_attention ?? 0}
-            caption="confused or frustrated entries"
+            caption={T("kpi_attn_caption")}
           />
         </div>
 
-        <SectionTitle>Quality over time</SectionTitle>
+        <SectionTitle>{T("sec_quality")}</SectionTitle>
         <div className="grid md:grid-cols-2 gap-4">
           <Card
-            title="Average rating by week"
-            subtitle="Higher is better. Tracks whether answers improve as more SOPs are added."
+            title={T("card_weekly")}
+            subtitle={T("card_weekly_sub")}
           >
-            <WeeklyChart weekly={data.weekly} />
+            <WeeklyChart weekly={data.weekly} emptyText={T("weekly_insufficient")} />
           </Card>
           <Card
-            title="How scientists felt"
-            subtitle="Every answer can be rated. This is the tone of the responses we logged."
+            title={T("card_felt")}
+            subtitle={T("card_felt_sub")}
           >
             {total === 0 ? (
-              <p className="text-sm text-gray-400">
-                No feedback yet. Try sending a feedback message in the chat
-                (e.g. "this process is confusing").
-              </p>
+              <p className="text-sm text-gray-400">{T("empty_felt")}</p>
             ) : (
               sentimentRows.map((label) => (
                 <SentimentBar
                   key={label}
                   label={label}
+                  display={sentLabel(label)}
                   count={bySentiment[label]}
                   total={total}
                 />
@@ -659,25 +728,22 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        <SectionTitle>Where to focus</SectionTitle>
+        <SectionTitle>{T("sec_focus")}</SectionTitle>
         <div className="grid md:grid-cols-2 gap-4">
           <Card
-            title="Top questions"
-            subtitle="Most asked topics this period — the gaps where better SOPs would help most."
+            title={T("card_top")}
+            subtitle={T("card_top_sub")}
           >
             {topics.length === 0 ? (
-              <p className="text-sm text-gray-400">
-                No topic data yet — entries gain a topic via the demo seed or
-                future chat tagging.
-              </p>
+              <p className="text-sm text-gray-400">{T("empty_topics")}</p>
             ) : (
               <ul>
                 {topics.slice(0, 5).map((t, i) => (
                   <RankedRow
                     key={t.topic}
                     index={i}
-                    title={t.topic}
-                    subtitle={t.example ? `e.g. "${t.example}"` : null}
+                    title={topicLabel(t.topic)}
+                    subtitle={t.example ? `${T("eg")} "${t.example}"` : null}
                     right={
                       <span className="text-base font-bold text-gray-800">
                         {t.count}
@@ -689,21 +755,19 @@ export default function Dashboard() {
             )}
           </Card>
           <Card
-            title="Processes causing the most confusion"
-            subtitle="Share with the owning department so they can clarify their documentation."
+            title={T("card_conf")}
+            subtitle={T("card_conf_sub")}
           >
             {confusion.length === 0 ? (
-              <p className="text-sm text-gray-400">
-                Nothing flagged yet — that's good news.
-              </p>
+              <p className="text-sm text-gray-400">{T("empty_conf")}</p>
             ) : (
               <ul>
                 {confusion.slice(0, 5).map((t, i) => (
                   <RankedRow
                     key={t.topic}
                     index={i}
-                    title={t.topic}
-                    subtitle={`${t.flagged} of ${t.count} entries flagged`}
+                    title={topicLabel(t.topic)}
+                    subtitle={`${t.flagged}/${t.count} ${T("flagged")}`}
                     right={
                       <MiniBar pct={Math.round((t.flagged / t.count) * 100)} />
                     }
@@ -716,10 +780,10 @@ export default function Dashboard() {
 
         {data.by_reason && Object.keys(data.by_reason).length > 0 && (
           <>
-            <SectionTitle>Why answers get a thumbs down</SectionTitle>
+            <SectionTitle>{T("sec_why")}</SectionTitle>
             <Card
-              title="Downvote reasons"
-              subtitle="Reasons scientists pick when an answer doesn't help."
+              title={T("card_reasons")}
+              subtitle={T("card_reasons_sub")}
             >
               {Object.entries(data.by_reason)
                 .sort((a, b) => b[1] - a[1])
@@ -732,6 +796,7 @@ export default function Dashboard() {
                     <SentimentBar
                       key={reason}
                       label={reason}
+                      display={reasonLabel(reason)}
                       count={count}
                       total={reasonTotal}
                     />
@@ -741,13 +806,13 @@ export default function Dashboard() {
           </>
         )}
 
-        <SectionTitle>Latest</SectionTitle>
+        <SectionTitle>{T("sec_latest")}</SectionTitle>
         <Card
-          title="Recent feedback"
-          subtitle="Newest comments left by scientists."
+          title={T("card_recent")}
+          subtitle={T("card_recent_sub")}
         >
           {allFeedback.length === 0 && (
-            <p className="text-sm text-gray-400">Nothing to show yet.</p>
+            <p className="text-sm text-gray-400">{T("empty_recent")}</p>
           )}
           <ul className="divide-y divide-gray-100">
             {allFeedback.slice(0, visibleCount).map((item, i) => (
@@ -758,18 +823,18 @@ export default function Dashboard() {
                     "bg-gray-100 text-gray-600"
                   }`}
                 >
-                  {cap(item.sentiment)}
+                  {sentLabel(item.sentiment)}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800">{item.message}</p>
+                  <p className="text-sm text-gray-800">{displayText(item, viewLang)}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {[
-                      item.topic,
+                      topicLabel(item.topic),
                       item.rating != null ? `${item.rating}/5` : null,
                       fmtDate(item.timestamp),
                       // The reason already headlines the row when it's the
                       // message text, so don't repeat it in the meta line.
-                      item.reason !== item.message ? item.reason : null,
+                      item.reason !== item.message ? reasonLabel(item.reason) : null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}
@@ -790,7 +855,7 @@ export default function Dashboard() {
                   onClick={() => setVisibleCount((c) => c + 10)}
                   className="text-sm text-roche font-medium hover:underline"
                 >
-                  Show more ({allFeedback.length - visibleCount} more)
+                  {T("show_more")} (+{allFeedback.length - visibleCount})
                 </button>
               )}
               {visibleCount > 10 && (
@@ -798,7 +863,7 @@ export default function Dashboard() {
                   onClick={() => setVisibleCount(10)}
                   className="text-sm text-gray-500 font-medium hover:underline"
                 >
-                  Show less
+                  {T("show_less")}
                 </button>
               )}
             </div>

@@ -30,10 +30,12 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# Make the backend package importable when run as a script.
+# Make the backend package + this scripts/ dir importable when run as a script.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from db import SYNTHETIC_MEMBERS  # noqa: E402
+from demo_feedback_data import FEEDBACK_ITEMS, ORIG_LANGS, REASONS  # noqa: E402
 from services.feedback_store import FeedbackStore  # noqa: E402
 
 random.seed(29)  # deterministic: same demo data on every machine
@@ -41,85 +43,6 @@ random.seed(29)  # deterministic: same demo data on every machine
 # Scientists give the feedback (IT teams answer it), so attribute demo
 # feedback to the lab scientists and their teams for the person/team filters.
 SCIENTISTS = [m for m in SYNTHETIC_MEMBERS if not m["team"].startswith("IT")]
-
-LANGUAGES = ["en", "en", "en", "en", "de", "de", "fr", "it"]  # weighted
-
-REASONS = [
-    "Wrong information",
-    "Source not relevant",
-    "Answer too vague",
-    "Wrong language",
-]
-
-# (topic, [(sentiment, rating, message)]) — messages stay short and plausible.
-TOPICS = {
-    "Material return": [
-        ("confused", 2, "What form do I need to send samples back?"),
-        ("satisfied", 5, "Found the return form straight away, thanks."),
-        ("frustrated", 1, "The return process described does not match the portal."),
-        ("neutral", 3, "OK but I had to ask twice."),
-        ("confused", 2, "Unclear who signs off the material return."),
-    ],
-    "Lab sharing": [
-        ("confused", 2, "Can two teams share the fume hood?"),
-        ("satisfied", 4, "Booking rules were explained clearly."),
-        ("negative", 2, "Answer contradicted what my team lead told me."),
-        ("neutral", 3, "Partially useful, missing the weekend rules."),
-    ],
-    "Onboarding": [
-        ("confused", 2, "Who approves my safety training?"),
-        ("satisfied", 5, "Onboarding checklist was exactly what I needed."),
-        ("frustrated", 1, "This onboarding process is really confusing."),
-        ("satisfied", 4, "Clear steps for the first week."),
-    ],
-    "Building access": [
-        ("confused", 2, "Weekend access to the lab?"),
-        ("satisfied", 5, "Badge request answered perfectly."),
-        ("neutral", 3, "Got the info but the SOP link was slow."),
-        ("satisfied", 4, "Saved me a trip to the office."),
-    ],
-    "Device cleaning": [
-        ("confused", 2, "What solution for the analyzer surface?"),
-        ("satisfied", 5, "Cleaning steps for the HP device were spot on."),
-        ("negative", 1, "Pointed me to the wrong device SOP."),
-    ],
-    "Calibration": [
-        ("frustrated", 1, "Calibration drift steps did not work for my unit."),
-        ("satisfied", 4, "Drift troubleshooting was helpful."),
-        ("confused", 2, "When is recalibration mandatory vs optional?"),
-        ("neutral", 3, "Found it, but the German version is outdated."),
-    ],
-    "Waste disposal": [
-        ("frustrated", 1, "Waste categories explanation was wrong for solvents."),
-        ("confused", 2, "Where do biohazard sharps go?"),
-        ("negative", 2, "Answer too vague to act on."),
-        ("satisfied", 4, "Clear disposal chart, thanks."),
-    ],
-    "Ordering supplies": [
-        ("confused", 2, "How do I order reagents under 500 CHF?"),
-        ("satisfied", 5, "Ordering steps matched the new portal."),
-        ("satisfied", 4, "Quick and correct."),
-        ("neutral", 3, "Fine, though approval limits were missing."),
-    ],
-}
-
-COMMENTS = {
-    "Wrong information": [
-        "The SOP link was outdated.",
-        "Steps 3 and 4 are in the wrong order.",
-        "Contact number listed is no longer valid.",
-    ],
-    "Answer too vague": [
-        "Too short, I needed the actual form name.",
-        "It just repeated my question back.",
-    ],
-    "Source not relevant": [
-        "It quoted the cleaning SOP for a calibration question.",
-    ],
-    "Wrong language": [
-        "I asked in German and got English.",
-    ],
-}
 
 
 def clear_seeded() -> None:
@@ -185,13 +108,12 @@ def main(append: bool = False) -> None:
     for week in range(8):
         week_entries = random.randint(11, 16)
         for _ in range(week_entries):
-            topic = random.choice(list(TOPICS))
-            sentiment, rating, message = random.choice(TOPICS[topic])
+            topic, sentiment, rating, translations = random.choice(FEEDBACK_ITEMS)
             # Bias toward the better option so the demo average lands ~3.5.
             if random.random() < 0.55:
-                alt = random.choice(TOPICS[topic])
-                if alt[1] > rating:
-                    sentiment, rating, message = alt
+                alt = random.choice(FEEDBACK_ITEMS)
+                if alt[2] > rating:
+                    topic, sentiment, rating, translations = alt
             # Improve ratings a bit in later weeks.
             if week >= 5 and rating <= 2 and random.random() < 0.35:
                 sentiment, rating = "neutral", 3
@@ -201,25 +123,24 @@ def main(append: bool = False) -> None:
                 hours=random.randint(7, 18),
                 minutes=random.randint(0, 59),
             )
-            reason = comment = None
+            reason = None
             if rating <= 2 and random.random() < 0.6:
                 reason = random.choice(REASONS)
-                if random.random() < 0.5:
-                    comment = random.choice(
-                        COMMENTS.get(reason, ["No further detail."])
-                    )
+            # Pick the language this entry was originally written in; the stored
+            # message is that language, with the full translation map alongside.
+            lang = random.choice(ORIG_LANGS)
             who = random.choice(SCIENTISTS)
             store.add(
                 session_id=f"demo-{week}-{n}",
-                message=message,
+                message=translations[lang],
                 sentiment=sentiment,
                 rating=rating,
                 reason=reason,
-                comment=comment,
                 topic=topic,
-                language=random.choice(LANGUAGES),
+                language=lang,
                 author=who["name"],
                 team=who["team"],
+                translations=translations,
                 timestamp=ts.isoformat(),
                 seed=True,
             )
