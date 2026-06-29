@@ -6,15 +6,26 @@ An AI-powered assistant that gives Roche scientists **one place** to:
    lab procedures) — every answer **cites the source document** (title · version · date).
 2. **Create IT incidents** in ServiceNow, with **AI triage** that sets the
    category, urgency/impact and routes the ticket to the right assignment group.
-3. **Give feedback** to IT teams, with **automatic sentiment detection** and a
+3. **Book equipment and rooms** in natural language — with conflict detection and
+   real **Google Calendar** events, on a shared team schedule.
+4. **Reach colleagues and IT** — ask the right expert when the docs fall short
+   (with an inbox), browse a **people directory**, and use a dedicated **IT
+   space** (office hours + announcements) without filing a formal ticket.
+5. **Give feedback** to IT teams, with **automatic sentiment detection** and a
    simple analytics view.
-4. Work in their **preferred language** — English, German, French or Italian —
+6. Work in their **preferred language** — English, German, French or Italian —
    both the answers *and* the interface.
-5. **Ask by voice** (browser speech-to-text) and tune their experience in a
-   built-in **Settings** panel.
+7. **Ask by voice** (browser speech-to-text, hands-free conversation mode) and
+   tune their experience in a built-in **Settings** panel.
 
 > **Grounded by design:** the assistant **never fabricates** Roche-specific
 > procedures. If the answer isn't in the indexed documents, it says so clearly.
+
+> **More than a chatbot — a two-sided community.** The project shipped in two
+> iterations: **MVP 1**, a grounded, source-cited assistant, evolved into **MVP 2**,
+> a laboratory-community platform with two perspectives (**scientist** and **IT**),
+> equipment/room booking, a people directory, expert routing, and a
+> **self-improving knowledge base** where colleague answers feed back into the RAG.
 
 ---
 
@@ -28,7 +39,9 @@ An AI-powered assistant that gives Roche scientists **one place** to:
 - [Environment variables](#environment-variables)
 - [How it works](#how-it-works)
 - [API reference](#api-reference)
+- [Testing](#testing)
 - [Demo scenarios](#demo-scenarios)
+- [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
 - [Team & ownership](#team--ownership)
 
@@ -40,11 +53,16 @@ An AI-powered assistant that gives Roche scientists **one place** to:
 |---|---|
 | **Document Q&A (RAG)** | Retrieval-augmented generation over a SOP knowledge base. Answers are grounded in retrieved chunks and **cite** the document they came from. Low-confidence answers are flagged. |
 | **Conversation memory** | Follow-up questions ("*what about returning them?*") are rewritten into standalone queries using the prior turns, so multi-turn chats work. |
-| **Multilingual** | Answers are generated directly in EN/DE/FR/IT via cross-lingual retrieval — no need to translate the whole corpus. The UI chrome is localized too. |
+| **Multilingual** | Answers are generated directly in EN/DE/FR/IT via cross-lingual retrieval — no need to translate the whole corpus. The **UI chrome is localized** too (nav, panels, perspectives). |
 | **AI incident triage** | A problem description is classified into category + severity, mapped to ServiceNow's impact/urgency (ITIL matrix → Priority P1–P4) and routed to an assignment group. |
 | **ServiceNow tickets** | Real Table-API incidents (or a mock when no credentials), with caller resolution and complete description. |
+| **Equipment & room booking** | Natural-language booking opens a pre-filled form, **detects scheduling conflicts**, and creates a real **Google Calendar** event. A shared **team schedule** shows all reservations. |
+| **Ask a colleague** | When the docs don't cover a question, it routes to the **best-matching expert** by expertise, with an **inbox** to reply and track the exchange. |
+| **Self-improving knowledge base** | A colleague's answer is **indexed back into the RAG** and offered to the next person who asks something similar, cited as **"Community knowledge."** |
+| **People directory + IT space** | Scientist profiles (role, team, expertise, contributions); a dedicated **IT Support** space with office hours and **broadcast announcements**; an **activity feed**. |
+| **Two perspectives** | The same platform is experienced as a **scientist** (ask, book, escalate) or as **IT** (answer queue, post updates, see demand) — chosen at a perspective landing. |
 | **Feedback + sentiment** | User feedback is auto-detected, sentiment-scored, and stored for analytics. |
-| **Voice input** | Browser Web Speech API: dictate a question in the selected language, with live transcription and optional auto-send. |
+| **Voice input** | Browser Web Speech API: dictate a question in the selected language, with live transcription, read-aloud, and a hands-free conversation mode. |
 | **Settings panel** | Theme (light/dark/system), default language, voice preferences, ticket identity, and clear-data — persisted in the browser. |
 
 ---
@@ -102,9 +120,12 @@ An AI-powered assistant that gives Roche scientists **one place** to:
 |---|---|
 | **Backend** | Python 3.11, FastAPI, Uvicorn, Pydantic |
 | **RAG / LLM** | Google Gemini (`gemini-flash-lite-latest`) + Gemini embeddings (`models/gemini-embedding-001`), LangChain 0.3.x, ChromaDB (in-process) |
-| **Integrations** | ServiceNow Table API (httpx), Google Drive API v3 (read-only service account) |
+| **Persistence** | SQLModel over SQLite — lab members, bookings, colleague requests, announcements survive restarts |
+| **Integrations** | ServiceNow Table API (httpx), Google Drive API v3 (read-only service account), Google Calendar API (service account) |
 | **Frontend** | React 18, Vite, Tailwind CSS, lucide-react, react-markdown |
 | **Voice** | Browser Web Speech API (no key, Chrome/Edge) |
+| **Testing** | pytest — 112 automated tests (deterministic, key-free), plus model-backed evals |
+| **Deploy** | Docker, Render (zero-setup demo link), UptimeRobot keep-alive |
 
 ---
 
@@ -115,14 +136,24 @@ scientist-assistant/
 ├── backend/
 │   ├── main.py                 # FastAPI app, CORS, routers, startup ingest, /admin/reindex
 │   ├── config.py               # Settings loaded from .env (single source of truth)
+│   ├── db.py                   # SQLModel/SQLite: LabMember, Booking, ColleagueRequest,
+│   │                           #   Announcement, AppMeta + synthetic demo-world seeding
 │   ├── routes/
 │   │   ├── chat.py             # /chat (Q&A or feedback, auto-routed), /title
 │   │   ├── feedback.py         # /feedback, /feedback/analytics
-│   │   └── incidents.py        # /incidents, /incidents/triage
+│   │   ├── incidents.py        # /incidents, /incidents/triage
+│   │   ├── bookings.py         # /equipment, /bookings (conflict-checked)
+│   │   ├── members.py          # /members, /members/directory, /it/questions, profiles
+│   │   ├── experts.py          # /experts/suggest, /colleague-requests, /meetings
+│   │   ├── announcements.py    # /announcements (IT broadcasts)
+│   │   └── activity.py         # /activity (unified recent-activity feed)
 │   ├── services/
 │   │   ├── rag.py              # in-process RAG: retrieve → ground → answer + cite
-│   │   ├── ingest.py           # load SOPs → chunk → embed → ChromaDB
+│   │   ├── ingest.py           # load SOPs → chunk → embed → ChromaDB (+ community answers)
 │   │   ├── gdrive.py           # Google Drive → data/sops sync bridge
+│   │   ├── calendar.py         # Google Calendar events for bookings/meetings
+│   │   ├── booking.py          # equipment/room catalog + overlap detection
+│   │   ├── experts.py          # match a question to the best-fit colleague
 │   │   ├── triage.py           # incident category/severity (Gemini + heuristic)
 │   │   ├── servicenow.py       # incident creation, priority, assignment-group routing
 │   │   ├── classifier.py       # question-vs-feedback intent (keyword heuristic)
@@ -130,14 +161,19 @@ scientist-assistant/
 │   │   ├── translator.py       # language detection (langdetect)
 │   │   ├── title.py            # chat title generation (heuristic)
 │   │   └── feedback_store.py   # in-memory feedback + analytics
+│   ├── tests/                  # pytest suite (112 tests, deterministic, key-free)
+│   ├── eval/                   # model-backed evals (multilingual.py, triage_uplift.py)
 │   └── models/schemas.py       # Pydantic request/response models
 ├── frontend/                   # React + Vite + Tailwind
 │   └── src/
-│       ├── pages/Chat.jsx      # app shell: sidebar, sessions, theme, settings
-│       ├── components/         # ChatWindow, MessageBubble, IncidentForm,
-│       │                       #   SettingsPanel, DocumentViewer, ...
+│       ├── pages/Chat.jsx      # app shell: sidebar, sessions, theme, settings, perspectives
+│       ├── components/         # ChatWindow, MessageBubble, IncidentForm, BookingForm,
+│       │                       #   TeamSchedule, TeamDirectory, ITSupport, ColleagueInbox,
+│       │                       #   AnnouncementsBar, PerspectiveLanding, SettingsPanel, ...
+│       ├── i18n.js             # central UI string table + t(lang, key) — EN/DE/FR/IT
 │       └── api.js              # REST client
 ├── data/sops/                  # SOP knowledge base (Markdown + frontmatter) — indexed by RAG
+├── docs/                       # architecture, test-insights, multilingual-insights, report, poster
 ├── requirements.txt            # backend Python dependencies (repo root)
 ├── .env.example                # copy to .env and fill in
 ├── docker-compose.yml
@@ -239,9 +275,12 @@ chat/triage experience; everything else is optional and degrades gracefully.
 | `CONFIDENCE_THRESHOLD` | no | Below this retrieval score, answers are flagged low-confidence. Default `0.45`. |
 | `GOOGLE_DRIVE_FOLDER_ID` | Drive sync | Folder ID from the Drive URL — syncs SOPs into `data/sops`. |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Drive sync | Path to the read-only service-account JSON. |
+| `GOOGLE_CALENDAR_ID` | booking events | Calendar ID for equipment/room bookings and meetings (same service account). |
+| `CALENDAR_TIMEZONE` | no | Timezone for calendar events. Default `Europe/Madrid`. |
 | `SERVICENOW_INSTANCE_URL` | live tickets | e.g. `https://devXXXXX.service-now.com`. |
 | `SERVICENOW_USERNAME` | live tickets | ServiceNow user. |
 | `SERVICENOW_PASSWORD` | live tickets | ServiceNow password. |
+| `DATABASE_URL` | no | SQLModel/SQLite URL. Default `sqlite:///<repo>/data/app.db`. |
 | `MOCK_MODE` | no | `true` → mock ServiceNow responses. Default `true`. |
 
 > **Secrets:** `.env`, `backend/secrets/service_account.json`, `chroma_db/` and
@@ -272,11 +311,33 @@ say so). Resolves the caller by partial name/email match and falls back to the
 API user when the reporter isn't a ServiceNow user, keeping the entered value in
 the description.
 
+**Booking & calendar** (`services/booking.py` + `services/calendar.py`)
+A static catalog of equipment and rooms is bookable in natural language. The
+service rejects **overlapping** reservations on the same resource (back-to-back
+is allowed), persists the booking in SQLite, and — when Calendar is configured —
+creates a real Google Calendar event. All reservations appear on a shared team
+schedule.
+
+**Collaboration & the self-improving knowledge base**
+(`services/experts.py` + `routes/experts.py`)
+When the docs fall short, `experts.suggest` scores each lab member's expertise
+against the question and routes it to the best fit, with an inbox to answer.
+**Answering a colleague request indexes the Q&A back into the RAG** (via
+`ingest.add_community_answer`), so the next person who asks something similar
+gets it instantly, cited as *Community knowledge*.
+
+**Two perspectives**
+A perspective landing lets you enter as a **scientist** or as **IT**. The IT view
+turns the IT Support page into an **IT Console** (answer queue + announcements +
+demand analytics). Identity and perspective are kept in `localStorage`.
+
 **Multilingual & voice**
 Answers are generated directly in the requested language via cross-lingual
-retrieval. Voice input uses the browser Web Speech API in the selected locale
-(en-US/de-DE/fr-FR/it-IT) with live transcription; preferences live in the
-Settings panel and `localStorage`.
+retrieval, and the **UI is localized** through a central string table
+(`frontend/src/i18n.js`, `t(lang, key)` for EN/DE/FR/IT). Voice input uses the
+browser Web Speech API in the selected locale (en-US/de-DE/fr-FR/it-IT) with live
+transcription and an optional hands-free conversation mode; preferences live in
+the Settings panel and `localStorage`.
 
 ---
 
@@ -291,10 +352,61 @@ Settings panel and `localStorage`.
 | GET  | `/feedback/analytics` | — | Aggregated sentiment metrics |
 | POST | `/incidents` | `IncidentRequest` | Create a ServiceNow incident (auto-triages if urgency/impact missing) |
 | POST | `/incidents/triage` | `TriageRequest` | Classify category + severity without creating a ticket |
+| GET  | `/equipment` | — | List bookable equipment and rooms |
+| GET/POST | `/bookings` | `BookingRequest` | List or create a reservation (conflict-checked; creates a Calendar event) |
+| GET  | `/members` · `/members/directory` | — | Lab roster; directory enriched with contribution stats |
+| GET  | `/members/{id}/profile` | — | A member's profile + contributions + bookings |
+| GET  | `/it/questions` | — | Questions scientists routed to the IT team |
+| POST | `/experts/suggest` | `ExpertSuggestRequest` | Best-matching colleague(s) for a question |
+| GET/POST | `/colleague-requests` | `ColleagueRequestCreate` | Route a question to a colleague; inbox listing |
+| POST | `/colleague-requests/{id}/answer` | `ColleagueRequestAnswer` | Answer (indexed back into the RAG as community knowledge) |
+| POST | `/meetings` | `MeetingRequest` | Schedule a meeting (Calendar event) |
+| GET/POST | `/announcements` | `AnnouncementCreate` | IT broadcasts (maintenance, known issues, tips) |
+| GET  | `/activity` | — | Unified recent-activity feed across the lab |
 | POST | `/admin/reindex` | `?sync_drive=` | Rebuild the RAG index (optionally pull Drive first) |
 
 Full request/response models are in `backend/models/schemas.py`; interactive
 docs at `/docs`.
+
+---
+
+## Testing
+
+Two layers, both runnable from `backend/`.
+
+**Deterministic suite (no keys, ~10 s).** 112 automated tests that run in mock
+mode against an isolated SQLite database — reproducible anywhere, CI-ready:
+
+```bash
+cd scientist-assistant/backend
+pip install pytest
+python -m pytest tests/ -v
+```
+
+| Suite | Verifies | Result |
+|---|---|---|
+| `test_api_integration.py` | HTTP status + contract of the main routes | 10/10 |
+| `test_booking_conflict.py` | Booking overlap / adjacency logic | 6/6 |
+| `test_priority_matrix.py` | ITIL severity → (impact, urgency) → P1–P4, never P5 | 14/14 |
+| `test_experts.py` | Expert routing by specialty | 7/7 |
+| `test_classifier.py` · `test_sentiment.py` · `test_triage.py` | Intent / sentiment / triage heuristics | 60/60 |
+| `test_multilingual_heuristics.py` | DE/FR/IT reach of the English-keyword heuristics | 9 pass, **6 xfail** |
+
+**Total: 106 pass + 6 documented `xfail`.** The 6 expected failures keep a real
+limitation *visible*: the lightweight intent/sentiment heuristics are
+English-first (German barely registers). The assistant's **answers**, by
+contrast, are fully multilingual.
+
+**Model-backed evals (need `GOOGLE_API_KEY`).**
+
+```bash
+python -m eval.multilingual      # 20/20 answers grounded AND in the requested language (EN/DE/FR/IT)
+python -m eval.triage_uplift     # heuristic vs Gemini on 20 triage scenarios
+```
+
+See `docs/test-insights.md` and `docs/multilingual-insights.md` for the full
+write-up (including the test-driven improvement from 46/60 → 60/60 on the NLP
+suites).
 
 ---
 
@@ -309,6 +421,27 @@ docs at `/docs`.
 | 5 | **Voice** | click 🎤 and speak | Live transcription fills the box and auto-sends. |
 | 6 | **Incident + triage** | *"My virtual session keeps crashing"* → open the ticket form | Triage pre-fills category/priority; `POST /incidents` returns e.g. `INC0010013`, routed to a group. |
 | 7 | **Feedback + sentiment** | *"This onboarding process is really confusing"* | Routed to feedback → sentiment logged → visible in analytics. |
+| 8 | **Book equipment** | *"Book the confocal microscope tomorrow at 10"* | Pre-filled booking form, conflict check, Calendar event, shows on the team schedule. |
+| 9 | **Ask a colleague** | a question the SOPs don't cover | Routed to the best-fit expert; their answer is indexed back as community knowledge. |
+| 10 | **Switch perspective** | choose **Tom Becker (IT)** at the landing | The app becomes the **IT Console** — an answer queue, announcements, and demand analytics. |
+
+---
+
+## Deployment
+
+The prototype is containerised and was deployed to **Render** as a **zero-setup
+demo link** so external reviewers can try it with no install or keys (the demo
+runs in mock mode; document Q&A needs a `GOOGLE_API_KEY` configured on the
+service). `/health` accepts `GET` and `HEAD`, and an **UptimeRobot** monitor
+pings it to keep the free instance warm.
+
+```bash
+cd scientist-assistant
+copy .env.example .env    # set GOOGLE_API_KEY (and others as needed)
+docker compose up --build
+```
+
+Versioning: `main` = active development (v2), `production` = the frozen demo.
 
 ---
 
@@ -329,12 +462,14 @@ docs at `/docs`.
 
 | Area | Files |
 |---|---|
-| **Backend coordination / API surface** | `main.py`, `routes/`, `models/schemas.py` |
+| **Backend coordination / API surface** | `main.py`, `routes/`, `models/schemas.py`, `db.py` |
 | **AI / RAG** | `services/rag.py`, `services/ingest.py` |
-| **Google Drive integration** | `services/gdrive.py` |
+| **Google Drive & Calendar** | `services/gdrive.py`, `services/calendar.py` |
 | **ServiceNow & triage** | `services/servicenow.py`, `services/triage.py`, `routes/incidents.py` |
-| **Frontend / UX** | `frontend/` |
+| **Operations & collaboration** | `services/booking.py`, `services/experts.py`, `routes/bookings.py`, `routes/members.py`, `routes/experts.py`, `routes/announcements.py`, `routes/activity.py` |
+| **Frontend / UX** | `frontend/` (incl. `i18n.js`, MVP 2 panels) |
 | **Sentiment & analytics** | `services/sentiment.py`, `services/translator.py`, `services/feedback_store.py` |
+| **Testing** | `backend/tests/`, `backend/eval/` |
 
 Services are loosely coupled and each **degrades gracefully** with mock/heuristic
 fallbacks, so no one blocks anyone else.
